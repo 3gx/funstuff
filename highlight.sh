@@ -18,7 +18,7 @@ a:target {
 <body style="background-color:#ffffff">
 "
 highlight --syntax c++  --include-style --line-numbers --style zellner --inline-css -f | \
-  awk '{print "<a href=\"#L"(NR+1)"\" name=\"L"(NR+1)"\" style=\"text-decoration:none\">"$0"</a>"; }'
+  awk '{print "<a href=\"#L"NR"\" name=\"L"NR"\" style=\"text-decoration:none\">"$0"</a>"; }'
 echo "</tt></pre>
 </body>
 </html>"
