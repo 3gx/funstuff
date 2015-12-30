@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # $ python highlight.py source.cpp 
 # $ chrome open source.cpp.html
+# This tool requires "highlight" tool: http://andre-simon.de/index.php
 
 import sys
 import subprocess
