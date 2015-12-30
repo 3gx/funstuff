@@ -28,6 +28,28 @@ function scrollDown() {
     setTimeout('window.scrollTo(0,st)',0);
   }
 }
+function scrollDown() {
+  var url = document.location.href;
+  if (url.indexOf('#') != -1)
+  {
+    st = $(window.location.hash).offset().top-window.innerHeight/3;
+    setTimeout('window.scrollTo(0,st)',0);
+  }
+}
+var pageYOffset_preclick;
+function handleClick() {
+  pageYOffset_preclick= window.pageYOffset;
+}
+function handleHashchange() {
+  var url = document.location.href;
+  if (url.indexOf('#') != -1)
+  {
+    var st1 = $(window.location.hash).offset().top;
+    window.scrollTo(0, pageYOffset_preclick);
+  } 
+}
+window.addEventListener('click', handleClick);
+window.addEventListener('hashchange', handleHashchange);
 </script>
 <style type=text/css> 
 a:link {
@@ -93,7 +115,7 @@ total_line_count = line_count;
 line_count = 0;
 for line in body:
   line_count += 1
-  js_line = "onclick=\"keepLocation(window.pageYOffset);\""
+  js_line = "" # onclick=\"keepLocation(window.pageYOffset);\""
   line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\"><span style=\"color:#888888;\" %s>  %s </span></a>\n" % \
     (line_count, js_line, formatted_int(line_count, total_line_count))
 line_numbers += "</pre>"
