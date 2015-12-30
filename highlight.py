@@ -5,9 +5,10 @@
 
 import sys
 import subprocess
+import urllib2
 from math import log10,ceil
 
-header="""
+header_template="""
 <html>
 <head>
 <style type=text/css> 
@@ -32,7 +33,7 @@ pre.LineNumbers {
   margin-right:0px;
 }
 </style>
-<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
+%s
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 
 sfTarget = function() {
@@ -94,6 +95,19 @@ $(function() {
 <tt>
 <div class="CodeBox">
 """
+
+jquery="""
+<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
+"""
+if True:
+  response = urllib2.urlopen('http://code.jquery.com/jquery-1.11.3.min.js')
+  jquery  = "<script type=\"text/javascript\">\n"
+  jquery += response.read()
+  jquery += "\n</script>\n"
+
+header=header_template % jquery
+
+
 footer="""
 </div>
 </tt>
