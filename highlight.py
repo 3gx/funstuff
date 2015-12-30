@@ -8,6 +8,7 @@ from math import log10,ceil
 
 header="""
 <html>
+<head>
 <style type=text/css> 
 a:link {
     background-color: #f8f8f8
@@ -19,12 +20,24 @@ a:hover {
 span:target { 
   background-color: yellow;
 } 
+div.CodeBox {
+  padding:2px;
+}
+pre.LineNumbers {
+  float: left;
+  padding-right:2px;
+  border: solid 2px #888;
+  margin-right:7px;
+}
 </style>
-<pre><tt>
+</head>
 <body style=background-color:#ffffff>
+<tt>
+<div class="CodeBox">
 """
 footer="""
-</tt></pre>
+</div>
+</tt>
 </body>
 </html>
 """
@@ -46,28 +59,27 @@ p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
 out,err = p.communicate()
 line_count = 0;
 body = out.split('\n')
-dst = ""
+body_anchored = "<pre>"
 for line in body:
   line_count += 1;
-  dst += "<span id=\""+str(line_count)+"\"> "+line+"</span>\n"
-#print dst
-#sys.exit(0)
+  body_anchored += "<span id=\""+str(line_count)+"\"> "+line+"</span>\n"
+body_anchored+="</pre>"
 
-body = dst.split('\n')[:-1]
-dst = ""
+line_numbers = "<pre class=\"LineNumbers\">"
 total_line_count = line_count;
 line_count = 0;
 for line in body:
   line_count += 1
-  dst += "<a href=\"#%s\" style=\"text-decoration:none\"><span style=\"color:#888888;\">  %s </span></a>%s\n" % \
-    (line_count, formatted_int(line_count, total_line_count), line)
-
+  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\"><span style=\"color:#888888;\">  %s </span></a>\n" % \
+    (line_count, formatted_int(line_count, total_line_count))
+line_numbers += "</pre>"
 
 
 print "Writing output to %s" % fout
 fout = open(fout, 'w')
 fout.write(header+'\n')
-fout.write(dst)
+fout.write(line_numbers)
+fout.write(body_anchored)
 fout.write(footer+'\n')
 fout.close()
   
