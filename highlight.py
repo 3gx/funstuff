@@ -117,7 +117,7 @@ line_count = 0;
 for line in body:
   line_count += 1
   js_line = "onclick=\"keepLocation(window.pageYOffset);\""
-  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\"><span style=\"color:#888888;\" %s>  %s </span></a>\n" % \
+  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\" %s><span style=\"color:#888888;\" >  %s </span></a>\n" % \
     (line_count, js_line, formatted_int(line_count, total_line_count))
 line_numbers += "</pre>"
 
