@@ -10,54 +10,12 @@ from math import log10,ceil
 header="""
 <html>
 <head>
-<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
-<script>
-function keepLocation(oldOffset) {
-  if (window.pageYOffset!= null){
-    st=oldOffset;
-  }
-  if (document.body.scrollWidth!= null){
-    st=oldOffset;
-  }
-  setTimeout('window.scrollTo(0,st)',0);
-}
-function scrollDown() {
-  var url = document.location.href;
-  if (url.indexOf('#') != -1)
-  {
-    st = $(window.location.hash).offset().top-window.innerHeight/3;
-    setTimeout('window.scrollTo(0,st)',0);
-  }
-}
-function scrollDown() {
-  var url = document.location.href;
-  if (url.indexOf('#') != -1)
-  {
-    st = $(window.location.hash).offset().top-window.innerHeight/3;
-    setTimeout('window.scrollTo(0,st)',0);
-  }
-}
-var pageYOffset_preclick;
-function handleClick() {
-  pageYOffset_preclick= window.pageYOffset;
-}
-function handleHashchange() {
-  var url = document.location.href;
-  if (url.indexOf('#') != -1)
-  {
-    var st1 = $(window.location.hash).offset().top;
-    window.scrollTo(0, pageYOffset_preclick);
-  } 
-}
-window.addEventListener('click', handleClick);
-window.addEventListener('hashchange', handleHashchange);
-</script>
 <style type=text/css> 
 a:link {
     background-color: #f8f8f8
 }
   
-a:hover {
+a:hover, a.sftarget {
     background-color: #eef;
 }
 span:target { 
@@ -74,6 +32,63 @@ pre.LineNumbers {
   margin-right:0px;
 }
 </style>
+<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
+<script type="text/javascript"><!--//--><![CDATA[//><!--
+
+sfTarget = function() {
+  var sfEls=document.getElementsByTagName("A");
+  var aEls = document.getElementsByTagName("A");
+  document.lastTarget = null;
+  for (var i=0; i<sfEls.length; i++) {
+    if (sfEls[i].name) {
+      if (location.hash==("#" + sfEls[i].name)) {
+        sfEls[i].className+=" " + cls;
+        document.lastTarget=sfEls[i];
+      }
+      for (var j=0; j<aEls.length; j++) {
+        if (aEls[j].hash==("#" + sfEls[i].name)) aEls[j].targetEl = sfEls[i]; aEls[j].onclick = function() {
+          if (document.lastTarget) document.lastTarget.className = document.lastTarget.className.replace(new RegExp(" sftarget\\b"), "");
+          if (this.targetEl) this.targetEl.className+=" sftarget"; document.lastTarget=this.targetEl;
+          return true;
+        }
+      }
+    }
+  }
+}
+if (window.attachEvent) window.attachEvent("onload", sfTarget);
+
+// alternative way to handle anchor (jerky on Chrome/FF)
+function keepLocation(oldOffset) {
+  if (window.pageYOffset!= null){
+    st=oldOffset;
+  }
+  if (document.body.scrollWidth!= null){
+    st=oldOffset;
+  }
+  setTimeout('window.scrollTo(0,st)',0);
+}
+// handle onload 
+function scrollDown() {
+  var url = document.location.href;
+  if (url.indexOf('#') != -1)
+  {
+    st = $(window.location.hash).offset().top-window.innerHeight/3;
+    setTimeout('window.scrollTo(0,st)',0);
+  }
+}
+// handle anchors
+$(function() {
+  $("a.falseLinks").click(function(e) {
+    // ...other stuff you want to do when links is clicked
+    e.preventDefault();
+    var offset = window.pageYOffset;
+    window.location=this.href;
+    $('html,body').scrollTop(offset);
+    // This is the same as putting onclick="return false;" in HTML
+   return false;
+  })
+});
+//--><!]]></script>
 </head>
 <body style=background-color:#ffffff onload="scrollDown()">
 <tt>
@@ -117,6 +132,8 @@ line_count = 0;
 for line in body:
   line_count += 1
   js_line = "onclick=\"keepLocation(window.pageYOffset);\""
+  js_line = "class=\"falseLinks\""
+#  js_line = ""
   line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\" %s><span style=\"color:#888888;\" >  %s </span></a>\n" % \
     (line_count, js_line, formatted_int(line_count, total_line_count))
 line_numbers += "</pre>"
