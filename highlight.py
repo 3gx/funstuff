@@ -9,6 +9,17 @@ from math import log10,ceil
 header="""
 <html>
 <head>
+<script>
+function keepLocation(oldOffset) {
+  if (window.pageYOffset!= null){
+    st=oldOffset;
+  }
+  if (document.body.scrollWidth!= null){
+    st=oldOffset;
+  }
+  setTimeout('window.scrollTo(0,st)',0);
+}
+</script>
 <style type=text/css> 
 a:link {
     background-color: #f8f8f8
@@ -18,16 +29,17 @@ a:hover {
     background-color: #eef;
 }
 span:target { 
-  background-color: yellow;
+  background-color: #f6ebbb;
 } 
+pre { margin: 0; }
 div.CodeBox {
   padding:2px;
 }
 pre.LineNumbers {
   float: left;
-  padding-right:2px;
-  border: solid 2px #888;
-  margin-right:7px;
+  padding-right:0px;
+  border: solid 1px #ddd;
+  margin-right:0px;
 }
 </style>
 </head>
@@ -54,7 +66,9 @@ def formatted_int(i,imax):
 fin=sys.argv[1];
 fout=fin+".html"
 
-cmd='highlight --syntax c++  --include-style --style zellner --inline-css -f %s' % fin;
+style='zellner'
+style='solarized-light'
+cmd='highlight --syntax c++  --include-style --style %s --inline-css -f %s' % (style,fin);
 p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 out,err = p.communicate()
 line_count = 0;
@@ -70,8 +84,9 @@ total_line_count = line_count;
 line_count = 0;
 for line in body:
   line_count += 1
-  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\"><span style=\"color:#888888;\">  %s </span></a>\n" % \
-    (line_count, formatted_int(line_count, total_line_count))
+  js_line = "onclick=\"keepLocation(window.pageYOffset);\""
+  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\"><span style=\"color:#888888;\" %s>  %s </span></a>\n" % \
+    (line_count, js_line, formatted_int(line_count, total_line_count))
 line_numbers += "</pre>"
 
 
