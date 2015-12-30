@@ -9,6 +9,7 @@ from math import log10,ceil
 header="""
 <html>
 <head>
+<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
 <script>
 function keepLocation(oldOffset) {
   if (window.pageYOffset!= null){
@@ -18,6 +19,14 @@ function keepLocation(oldOffset) {
     st=oldOffset;
   }
   setTimeout('window.scrollTo(0,st)',0);
+}
+function scrollDown() {
+  var url = document.location.href;
+  if (url.indexOf('#') != -1)
+  {
+    st = $(window.location.hash).offset().top-window.innerHeight/3;
+    setTimeout('window.scrollTo(0,st)',0);
+  }
 }
 </script>
 <style type=text/css> 
@@ -43,7 +52,7 @@ pre.LineNumbers {
 }
 </style>
 </head>
-<body style=background-color:#ffffff>
+<body style=background-color:#ffffff onload="scrollDown()">
 <tt>
 <div class="CodeBox">
 """
