@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-# $ python highlight.py source.cpp 
+# $ python highlight.py source.cpp  [-o out.html]
 # $ chrome open source.cpp.html
 # This tool requires "highlight" tool: http://andre-simon.de/index.php
 
 import sys
 import subprocess
 import urllib2
+import os
 from math import log10,ceil
 
 header_template="""
@@ -32,13 +33,8 @@ pre.LineNumbers {
   border: solid 1px #ddd;
   margin-right:0px;
 }
-span.unselectable {
-/*  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none
-  user-select: none; 
-*/
+span.codeline {
+  padding-left:5px;
 }
 </style>
 %s
@@ -132,8 +128,25 @@ def formatted_int(i,imax):
   val += str(i)
   return val
 
-fin=sys.argv[1];
-fout=fin+".html"
+if len(sys.argv) < 2:
+  print "Usage: %s  source.cpp [-o output.html]" % sys.argv[0]
+  sys.exit(0)
+
+fin=""
+fout=""
+i = 1;
+while i < len(sys.argv):
+  if sys.argv[i] == "-o":
+    i += 1;
+    fout = sys.argv[i]
+  else:
+    fin = sys.argv[i]
+  i += 1;
+
+if fout == "":
+  fout = fin+".html"
+
+print "Highlighting %s" % fin
 
 style='zellner'
 style='solarized-light'
@@ -142,10 +155,12 @@ p = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE
 out,err = p.communicate()
 line_count = 0;
 body = out.split('\n')
-body_anchored = "<pre>"
+if body[-1] == "":
+  body = body[:-1]
+body_anchored = "<pre>\n"
 for line in body:
   line_count += 1;
-  body_anchored += "<span id=\""+str(line_count)+"\"><span class=\"unselectable\"> </span>"+line+"</span>\n"
+  body_anchored += "<span id=\""+str(line_count)+"\" class=\"codeline\">"+line+"</span>\n"
 body_anchored+="</pre>"
 
 line_numbers = "<pre class=\"LineNumbers\">"
