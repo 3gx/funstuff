@@ -29,16 +29,15 @@ span:target, span.sftarget {
 div.CodeBox {
   padding:2px;
   margin-bottom:18px;
-  width: 970px;
+  position:absolute;
 }
 code.CodeBody {
   float: left;
+  position:absolute;
   margin: 0;
   border: solid 1px #ddd;
   margin-left:-1px;
   padding-right:8px;
-  width:896px;
-  overflow: auto;
 }
 code.LineNumbers {
   float: left;
@@ -52,7 +51,6 @@ span.linenumber {
   height:15px;
   white-space: pre;
   display: block;
-  width: %dpx;
 }
 span.codeline {
   padding-left:5px;
@@ -208,8 +206,7 @@ for line in body:
 line_numbers += "</code>"
 
 
-size = (int(ceil(log10(total_line_count+0.1)))+1)*8 + 10;
-header=header_template % (size,jquery)
+header=header_template % jquery
 print "Writing output to %s" % fout
 fout = open(fout, 'w')
 fout.write(header+'\n')
