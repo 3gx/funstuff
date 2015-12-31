@@ -20,12 +20,19 @@ a:link {
 a:hover, a.sftarget {
     background-color: #eef;
 }
-span:target { 
+:target, .sftarget { 
   background-color: #f6ebbb;
+  border: 1px solid #D4D4D4;
 } 
 pre { margin: 0; }
 div.CodeBox {
   padding:2px;
+}
+pre.CodeBody {
+  float: left;
+  border: solid 1px #ddd;
+  margin-left:-1px;
+  padding-right:8px;
 }
 pre.LineNumbers {
   float: left;
@@ -157,7 +164,7 @@ line_count = 0;
 body = out.split('\n')
 if body[-1] == "":
   body = body[:-1]
-body_anchored = "<pre>\n"
+body_anchored = "<pre class=\"CodeBody\">\n"
 for line in body:
   line_count += 1;
   body_anchored += "<span id=\""+str(line_count)+"\" class=\"codeline\">"+line+"</span>\n"
