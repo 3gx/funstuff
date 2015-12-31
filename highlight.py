@@ -29,6 +29,8 @@ span:target, span.sftarget {
 div.CodeBox {
   padding:2px;
   margin-bottom:18px;
+  width: 970px;
+  overflow: scroll;
 }
 code.CodeBody {
   float: left;
@@ -36,6 +38,8 @@ code.CodeBody {
   border: solid 1px #ddd;
   margin-left:-1px;
   padding-right:8px;
+  width:896px;
+  overflow: scroll;
 }
 code.LineNumbers {
   float: left;
