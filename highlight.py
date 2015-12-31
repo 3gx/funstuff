@@ -69,22 +69,30 @@ function scrollDown() {
   var url = document.location.href;
   if (url.indexOf('#') != -1)
   {
-    st = $(window.location.hash).offset().top-window.innerHeight/3;
+    var hash = window.location.hash;
+    var id   = hash.substr(1);
+    var offset = document.getElementById(id).offsetTop 
+    window.location.hash = hash;
+    st =offset-window.innerHeight/3;
     setTimeout('window.scrollTo(0,st)',0);
   }
 }
 // handle anchors
-$(function() {
-  $("a.falseLinks").click(function(e) {
-    // ...other stuff you want to do when links is clicked
-    e.preventDefault();
-    var offset = window.pageYOffset;
-    window.location=this.href;
-    $('html,body').scrollTop(offset);
-    // This is the same as putting onclick="return false;" in HTML
-   return false;
-  })
-});
+function clickHandler(event)
+{
+  if (event.target.className === "linenumber")
+  {
+     event.preventDefault();
+     var id = event.target.id;
+     var href  = "L"+id;
+     var url = window.location.pathname+"#"+href;
+     var offset = window.pageYOffset;
+     window.location=url;
+     window.scrollTo(0,offset);
+     return false;
+  }
+}
+window.addEventListener('click',clickHandler);
 </script>
 </head>
 <body style=background-color:#ffffff onload="scrollDown()">
@@ -95,12 +103,13 @@ $(function() {
 jquery="""
 <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.11.3.min.js"></script>
 """
-if True:
+if False:
   response = urllib2.urlopen('http://code.jquery.com/jquery-1.11.3.min.js')
   jquery  = "<script type=\"text/javascript\">\n"
   jquery += response.read()
   jquery += "\n</script>\n"
 
+jquery=""
 
 
 footer="""
@@ -157,7 +166,7 @@ if body[-1] == "":
 body_anchored = "<code class=\"CodeBody\">\n"
 for line in body:
   line_count += 1;
-  body_anchored += "<span id=\""+str(line_count)+"\" class=\"codeline\">"+line+"</span>\n"
+  body_anchored += "<span id=\"L"+str(line_count)+"\" class=\"codeline\">"+line+"</span>\n"
 body_anchored+="</code>"
 
 line_numbers = "<code class=\"LineNumbers\">\n"
@@ -168,8 +177,9 @@ for line in body:
   js_line = "onclick=\"keepLocation(window.pageYOffset);\""
   js_line = "class=\"falseLinks\""
 #  js_line = ""
-  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\" %s><span style=\"color:#888888;\" class=\"linenumber\"> %s </span></a>\n" % \
-    (line_count, js_line, formatted_int(line_count, total_line_count))
+  line_numbers += "<a href=\"#L%s\" style=\"text-decoration:none\" %s>" % (line_count, js_line);
+  line_numbers += "<span style=\"color:#888888;\" class=\"linenumber\" id=\"%s\"> %s </span></a>\n" % \
+    (line_count, formatted_int(line_count, total_line_count))
 line_numbers += "</code>"
 
 
