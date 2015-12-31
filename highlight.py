@@ -28,7 +28,7 @@ span:target, span.sftarget {
 } 
 div.CodeBox {
   padding:2px;
-  margin-bottom:18px;
+  padding-bottom:15px;
   position:absolute;
 }
 code.CodeBody {
