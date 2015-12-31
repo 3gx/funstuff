@@ -32,6 +32,14 @@ pre.LineNumbers {
   border: solid 1px #ddd;
   margin-right:0px;
 }
+span.unselectable {
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none
+  user-select: none; 
+
+}
 </style>
 %s
 <script type="text/javascript"><!--//--><![CDATA[//><!--
@@ -137,7 +145,7 @@ body = out.split('\n')
 body_anchored = "<pre>"
 for line in body:
   line_count += 1;
-  body_anchored += "<span id=\""+str(line_count)+"\"> "+line+"</span>\n"
+  body_anchored += "<span id=\""+str(line_count)+"\"><span class=\"unselectable\"> </span>"+line+"</span>\n"
 body_anchored+="</pre>"
 
 line_numbers = "<pre class=\"LineNumbers\">"
