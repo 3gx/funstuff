@@ -22,7 +22,6 @@ a:hover, a.sftarget {
 }
 :target, .sftarget { 
   background-color: #f6ebbb;
-  border: 1px solid #D4D4D4;
 } 
 pre { margin: 0; }
 div.CodeBox {
