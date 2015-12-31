@@ -12,6 +12,7 @@ from math import log10,ceil
 header_template="""
 <html>
 <head>
+<meta http-equiv="X-UA-Compatible" content="IE=9,chrome=1">
 <style type=text/css> 
 a:link {
     background-color: #f8f8f8
