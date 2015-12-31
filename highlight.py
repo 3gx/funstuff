@@ -33,12 +33,12 @@ pre.LineNumbers {
   margin-right:0px;
 }
 span.unselectable {
-  -webkit-user-select: none;
+/*  -webkit-user-select: none;
   -khtml-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none
   user-select: none; 
-
+*/
 }
 </style>
 %s
