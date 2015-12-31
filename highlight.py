@@ -22,7 +22,7 @@ a:hover {
     background-color: #eef;
     display:block
 }
-span:target, span.sftarget { 
+span:target { 
   background-color: #f6ebbb;
   margin-right:-8px;
 } 
@@ -63,40 +63,7 @@ a.falseLinks{
  }
 </style>
 %s
-<script type="text/javascript"><!--//--><![CDATA[//><!--
-
-sfTarget = function() {
-  var sfEls=document.getElementsByTagName("A");
-  var aEls = document.getElementsByTagName("A");
-  document.lastTarget = null;
-  for (var i=0; i<sfEls.length; i++) {
-    if (sfEls[i].name) {
-      if (location.hash==("#" + sfEls[i].name)) {
-        sfEls[i].className+=" " + cls;
-        document.lastTarget=sfEls[i];
-      }
-      for (var j=0; j<aEls.length; j++) {
-        if (aEls[j].hash==("#" + sfEls[i].name)) aEls[j].targetEl = sfEls[i]; aEls[j].onclick = function() {
-          if (document.lastTarget) document.lastTarget.className = document.lastTarget.className.replace(new RegExp(" sftarget\\b"), "");
-          if (this.targetEl) this.targetEl.className+=" sftarget"; document.lastTarget=this.targetEl;
-          return true;
-        }
-      }
-    }
-  }
-}
-if (window.attachEvent) window.attachEvent("onload", sfTarget);
-
-// alternative way to handle anchor (jerky on Chrome/FF)
-function keepLocation(oldOffset) {
-  if (window.pageYOffset!= null){
-    st=oldOffset;
-  }
-  if (document.body.scrollWidth!= null){
-    st=oldOffset;
-  }
-  setTimeout('window.scrollTo(0,st)',0);
-}
+<script type="text/javascript">
 // handle onload 
 function scrollDown() {
   var url = document.location.href;
@@ -118,7 +85,7 @@ $(function() {
    return false;
   })
 });
-//--><!]]></script>
+</script>
 </head>
 <body style=background-color:#ffffff onload="scrollDown()">
 <tt>
