@@ -17,34 +17,47 @@ a:link {
     background-color: #f8f8f8
 }
   
-a:hover, a.sftarget {
+a:hover {
     background-color: #eef;
+    display:block
 }
-:target, .sftarget { 
+span:target, span.sftarget { 
   background-color: #f6ebbb;
+  margin-right:-8px;
 } 
-pre { margin: 0; }
 div.CodeBox {
   padding:2px;
+  margin-bottom:18px;
 }
-pre.CodeBody {
+code.CodeBody {
   float: left;
+  margin: 0;
   border: solid 1px #ddd;
   margin-left:-1px;
   padding-right:8px;
 }
-pre.LineNumbers {
+code.LineNumbers {
   float: left;
+  margin: 0;
   padding-right:0px;
   border: solid 1px #ddd;
-  margin-right:0px;
+  margin-right:00px;
+  background: #F6F6F6
 }
-span.linenumber 
-{
+span.linenumber {
+  height:15px;
+  white-space: pre;
+  display: block;
 }
 span.codeline {
   padding-left:5px;
+  display: block;
+  height:15px;
+  white-space: pre;
 }
+a.falseLinks{
+  text-justify:right;
+ }
 </style>
 %s
 <script type="text/javascript"><!--//--><![CDATA[//><!--
@@ -166,13 +179,13 @@ line_count = 0;
 body = out.split('\n')
 if body[-1] == "":
   body = body[:-1]
-body_anchored = "<pre class=\"CodeBody\">\n"
+body_anchored = "<code class=\"CodeBody\">\n"
 for line in body:
   line_count += 1;
   body_anchored += "<span id=\""+str(line_count)+"\" class=\"codeline\">"+line+"</span>\n"
-body_anchored+="</pre>"
+body_anchored+="</code>"
 
-line_numbers = "<pre class=\"LineNumbers\">"
+line_numbers = "<code class=\"LineNumbers\">\n"
 total_line_count = line_count;
 line_count = 0;
 for line in body:
@@ -182,7 +195,7 @@ for line in body:
 #  js_line = ""
   line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\" %s><span style=\"color:#888888;\" class=\"linenumber\">  %s </span></a>\n" % \
     (line_count, js_line, formatted_int(line_count, total_line_count))
-line_numbers += "</pre>"
+line_numbers += "</code>"
 
 
 print "Writing output to %s" % fout
