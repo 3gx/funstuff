@@ -193,12 +193,12 @@ for line in body:
   js_line = "onclick=\"keepLocation(window.pageYOffset);\""
   js_line = "class=\"falseLinks\""
 #  js_line = ""
-  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\" %s><span style=\"color:#888888;\" class=\"linenumber\">  %s </span></a>\n" % \
+  line_numbers += "<a href=\"#%s\" style=\"text-decoration:none\" %s><span style=\"color:#888888;\" class=\"linenumber\"> %s </span></a>\n" % \
     (line_count, js_line, formatted_int(line_count, total_line_count))
 line_numbers += "</code>"
 
 
-size = (int(ceil(log10(total_line_count+0.1)))+2)*8 + 10;
+size = (int(ceil(log10(total_line_count+0.1)))+1)*8 + 10;
 header=header_template % (size,jquery)
 print "Writing output to %s" % fout
 fout = open(fout, 'w')
