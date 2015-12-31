@@ -48,6 +48,7 @@ span.linenumber {
   height:15px;
   white-space: pre;
   display: block;
+  width: %dpx;
 }
 span.codeline {
   padding-left:5px;
@@ -56,7 +57,7 @@ span.codeline {
   white-space: pre;
 }
 a.falseLinks{
-  text-justify:right;
+  text-align:right;
  }
 </style>
 %s
@@ -131,7 +132,6 @@ if True:
   jquery += response.read()
   jquery += "\n</script>\n"
 
-header=header_template % jquery
 
 
 footer="""
@@ -198,6 +198,8 @@ for line in body:
 line_numbers += "</code>"
 
 
+size = (int(ceil(log10(total_line_count+0.1)))+2)*8 + 10;
+header=header_template % (size,jquery)
 print "Writing output to %s" % fout
 fout = open(fout, 'w')
 fout.write(header+'\n')
