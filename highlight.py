@@ -146,6 +146,10 @@ footer="""
 </html>
 """
 
+def usage():
+  print "Usage: %s  source.cpp [-o output.html]" % sys.argv[0]
+  sys.exit(0)
+
 def formatted_int(i,imax):
   nmax = int(ceil(log10(imax+0.1)))
   n    = int(ceil(log10(i+0.1)))
@@ -156,8 +160,7 @@ def formatted_int(i,imax):
   return val
 
 if len(sys.argv) < 2:
-  print "Usage: %s  source.cpp [-o output.html]" % sys.argv[0]
-  sys.exit(0)
+  usage();
 
 fin=""
 fout=""
@@ -167,7 +170,10 @@ while i < len(sys.argv):
     i += 1;
     fout = sys.argv[i]
   else:
-    fin = sys.argv[i]
+    if fin == "":
+      fin = sys.argv[i]
+    else:
+      usage();
   i += 1;
 
 if fout == "":
