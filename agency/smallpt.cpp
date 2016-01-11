@@ -259,8 +259,8 @@ int main(int argc, char *argv[])
 
 #pragma omp parallel
     {
-      Rand48 rr(omp_get_thread_num());
-#pragma omp for shedule(dynamic)
+      Rand48 rr(omp_get_thread_num()*13);
+#pragma omp for schedule(dynamic) collapse(2)
       for (int y = 0; y < h; y++)
         for (unsigned short x = 0; x < w; x++) // Loop cols
         {
