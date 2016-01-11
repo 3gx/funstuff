@@ -279,8 +279,8 @@ T* custom_malloc(size_t n)
 
 int main(int argc, char *argv[])
 {
-  int w = 512;                                               // width
-  int h = 384;                                               // hight
+  int w = 1024;                                              // width
+  int h = 768;                                               // height
   int samps = argc == 2 ? atoi(argv[1]) / 4 : 1;             // # samples
   Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm()); // cam pos, dir
 
