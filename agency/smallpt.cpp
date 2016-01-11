@@ -103,6 +103,7 @@ struct Sphere
   real rad;       // radius
   Vec p, e, c;      // position, emission, color
   Refl_t refl;      // reflection type (DIFFuse, SPECular, REFRactive)
+  Sphere() {};
   __host__ __device__
   Sphere(real rad_, Vec p_, Vec e_, Vec c_, Refl_t refl_):
     rad(rad_), p(p_), e(e_), c(c_), refl(refl_) {}
@@ -122,6 +123,111 @@ struct Sphere
     return (t=b-det)>eps ? t : ((t=b+det)>eps ? t : 0);
   }
 };
+
+
+struct Smallpt
+{
+  Sphere *scene;
+  int n_objects;
+
+  Smallpt(Sphere *scene, size_t n) : scene(scene), n_objects(n) {}
+
+  __host__ __device__ 
+  bool intersect(const Ray &r, real &t, int &id) const
+  {
+    const int n = n_objects;
+    real d;
+    real inf = t = 1e20;
+    for (int i = int(n); i--;)
+      if ((d = scene[i].intersect(r)) && d < t)
+      {
+        t = d;
+        id = i;
+      }
+    return t < inf;
+  }
+  __host__ __device__ 
+  Vec radiance(const Ray &r_, int depth_, Rand48 &rr) const
+  {
+    real t;     // distance to intersection
+    int id = 0; // id of intersected object
+    Ray r = r_;
+    int depth = depth_;
+    // L0 = Le0 + f0*(L1)
+    //    = Le0 + f0*(Le1 + f1*L2)
+    //    = Le0 + f0*(Le1 + f1*(Le2 + f2*(L3))
+    //    = Le0 + f0*(Le1 + f1*(Le2 + f2*(Le3 + f3*(L4)))
+    //    = ...
+    //    = Le0 + f0*Le1 + f0*f1*Le2 + f0*f1*f2*Le3 + f0*f1*f2*f3*Le4 + ...
+    //
+    // So:
+    // F = 1
+    // while (1){
+    //   L += F*Lei
+    //   F *= fi
+    // }
+    Vec cl(0, 0, 0); // accumulated color
+    Vec cf(1, 1, 1); // accumulated reflectance
+    while (1)
+    {
+      if (!intersect(r, t, id))
+        return cl;                     // if miss, return black
+      const Sphere &obj = scene[id]; // the hit object
+      Vec x = r.o + r.d * t, n = (x - obj.p).norm(),
+          nl = n.dot(r.d) < 0 ? n : n * -1, f = obj.c;
+      real p = f.x > f.y && f.x > f.z ? f.x : f.y > f.z ? f.y : f.z; // max refl
+      cl = cl + cf.mult(obj.e);
+      if (++depth > 5)
+        if (rr.drand() < p)
+          f = f * (1 / p);
+        else
+          return cl; // R.R.
+      cf = cf.mult(f);
+      if (obj.refl == Refl_t::DIFF)
+      { // Ideal DIFFUSE reflection
+        real r1 = 2 * M_PI * rr.drand(), r2 = rr.drand(), r2s = sqrt(r2);
+        Vec w = nl, u = ((fabs(w.x) > .1 ? Vec(0, 1) : Vec(1)) % w).norm(),
+            v = w % u;
+        Vec d =
+          (u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1 - r2)).norm();
+        r = Ray(x, d);
+        continue;
+      }
+      else if (obj.refl == Refl_t::SPEC)
+      { // Ideal SPECULAR reflection
+        r = Ray(x, r.d - n * 2 * n.dot(r.d));
+        continue;
+      }
+      Ray reflRay(x, r.d - n * 2 * n.dot(r.d)); // Ideal dielectric REFRACTION
+      bool into = n.dot(nl) > 0;                // Ray from outside going in?
+      real nc = 1, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.d.dot(nl),
+           cos2t;
+      if ((cos2t = 1 - nnt * nnt * (1 - ddn * ddn)) < 0)
+      { // Total internal reflection
+        r = reflRay;
+        continue;
+      }
+      Vec tdir = (r.d * nnt - n * ((into ? 1 : -1) * (ddn * nnt + sqrt(cos2t))))
+        .norm();
+      real a = nt - nc, b = nt + nc, R0 = a * a / (b * b),
+           c = 1 - (into ? -ddn : tdir.dot(n));
+      real Re = R0 + (1 - R0) * c * c * c * c * c, Tr = 1 - Re,
+           P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
+      if (rr.drand() < P)
+      {
+        cf = cf * RP;
+        r = reflRay;
+      }
+      else
+      {
+        cf = cf * TP;
+        r = Ray(x, tdir);
+      }
+      continue;
+    }
+  }
+};
+
 Sphere spheres[] = 
 {//Scene: radius, position, emission, color, material
   Sphere((RR), Vec( (RR)+1,40.8,81.6), Vec(),Vec(.75,.25,.25),Refl_t::DIFF),//Left
@@ -136,81 +242,6 @@ Sphere spheres[] =
 };
 
 
-__host__ __device__
-static inline bool intersect(const Ray &r, real &t, int &id)
-{
-  const real n=sizeof(spheres)/sizeof(Sphere);
-  real d;
-  real inf=t=1e20;
-  for (int i=int(n); i--; ) 
-    if ((d = spheres[i].intersect(r)) && d<t)
-    {
-      t=d;
-      id=i;
-    }
-  return t<inf;
-}
-
-__host__ __device__
-Vec radiance(const Ray &r_, int depth_, Rand48 &rr)
-{
-  real t;                               // distance to intersection
-  int id=0;                               // id of intersected object
-  Ray r=r_;
-  int depth=depth_;
-  // L0 = Le0 + f0*(L1)
-  //    = Le0 + f0*(Le1 + f1*L2)
-  //    = Le0 + f0*(Le1 + f1*(Le2 + f2*(L3))
-  //    = Le0 + f0*(Le1 + f1*(Le2 + f2*(Le3 + f3*(L4)))
-  //    = ...
-  //    = Le0 + f0*Le1 + f0*f1*Le2 + f0*f1*f2*Le3 + f0*f1*f2*f3*Le4 + ...
-  // 
-  // So:
-  // F = 1
-  // while (1){
-  //   L += F*Lei
-  //   F *= fi
-  // }
-  Vec cl(0,0,0);   // accumulated color
-  Vec cf(1,1,1);  // accumulated reflectance
-  while (1){
-    if (!intersect(r, t, id)) return cl; // if miss, return black
-    const Sphere &obj = spheres[id];        // the hit object
-    Vec x=r.o+r.d*t, n=(x-obj.p).norm(), nl=n.dot(r.d)<0?n:n*-1, f=obj.c;
-    real p = f.x>f.y && f.x>f.z ? f.x : f.y>f.z ? f.y : f.z; // max refl
-    cl = cl + cf.mult(obj.e);
-    if (++depth>5) if (rr.drand()<p) f=f*(1/p); else return cl; //R.R.
-    cf = cf.mult(f);
-    if (obj.refl == Refl_t::DIFF){                  // Ideal DIFFUSE reflection
-      real r1=2*M_PI*rr.drand(), r2=rr.drand(), r2s=sqrt(r2);
-      Vec w=nl, u=((fabs(w.x)>.1?Vec(0,1):Vec(1))%w).norm(), v=w%u;
-      Vec d = (u*cos(r1)*r2s + v*sin(r1)*r2s + w*sqrt(1-r2)).norm();
-      r = Ray(x,d);
-      continue;
-    } else if (obj.refl == Refl_t::SPEC){           // Ideal SPECULAR reflection
-      r = Ray(x,r.d-n*2*n.dot(r.d));
-      continue;
-    }
-    Ray reflRay(x, r.d-n*2*n.dot(r.d));     // Ideal dielectric REFRACTION
-    bool into = n.dot(nl)>0;                // Ray from outside going in?
-    real nc=1, nt=1.5, nnt=into?nc/nt:nt/nc, ddn=r.d.dot(nl), cos2t;
-    if ((cos2t=1-nnt*nnt*(1-ddn*ddn))<0){    // Total internal reflection
-      r = reflRay;
-      continue;
-    }
-    Vec tdir = (r.d*nnt - n*((into?1:-1)*(ddn*nnt+sqrt(cos2t)))).norm();
-    real a=nt-nc, b=nt+nc, R0=a*a/(b*b), c = 1-(into?-ddn:tdir.dot(n));
-    real Re=R0+(1-R0)*c*c*c*c*c,Tr=1-Re,P=.25+.5*Re,RP=Re/P,TP=Tr/(1-P);
-    if (rr.drand()<P){
-      cf = cf*RP;
-      r = reflRay;
-    } else {
-      cf = cf*TP;
-      r = Ray(x,tdir);
-    }
-    continue;
-  }
-}
 
 __host__ __device__
 static inline real clamp(real x)
@@ -224,6 +255,22 @@ static inline int toInt(real x)
   return int(pow(clamp(x),1/2.2)*255+.5); 
 }
 
+template<class T>
+T* custom_malloc(size_t n)
+{
+  T* ptr;
+#ifdef USE_CUDA
+  auto status = cudaMallocManaged(&ptr, sizeof(T)*n);
+  assert(cudaSuccess == status);
+#else
+  ptr = reinterpret_cast<T*>(malloc(sizeof(T)*n));
+  assert(nullptr != ptr);
+#endif
+  for (int i = 0; i < n; i++)
+    ptr[i] = T{};
+  return ptr;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -235,8 +282,14 @@ int main(int argc, char *argv[])
   Vec cx=Vec(w*.5135f/h);
   Vec cy=(cx%cam.d).norm()*.5135f;
   Vec r;
-  auto c_vec = std::vector<Vec>(w*h);
-  auto c_ptr = c_vec.data();
+  auto c_ptr = custom_malloc<Vec>(w*h);
+
+  const int n_objects = sizeof(spheres)/sizeof(Sphere);
+  auto scene_ptr      = custom_malloc<Sphere>(n_objects);
+  for (int i = 0; i < n_objects; i++)
+    scene_ptr[i] = spheres[i];
+
+  Smallpt rt(scene_ptr, n_objects);
 
   for (int s = 0; s < samps; s++)
   {
@@ -264,7 +317,7 @@ int main(int argc, char *argv[])
                    dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
               Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
                       cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
-              r = r + radiance(Ray(cam.o + d * 140, d.norm()), 0, rr);
+              r = r + rt.radiance(Ray(cam.o + d * 140, d.norm()), 0, rr);
             }
           c_ptr[idx] = r;
         });
