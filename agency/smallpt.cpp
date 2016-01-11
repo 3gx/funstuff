@@ -257,27 +257,30 @@ int main(int argc, char *argv[])
   {
     fprintf(stderr, "\rRendering (%d spp) : %d ", samps * 4, s * 4);
 
-#pragma omp parallel for schedule(guided)
-    for (int y = 0; y < h; y++)
-      for (unsigned short x = 0; x < w; x++) // Loop cols
-      {
-        static Rand48 rr(omp_get_thread_num());
-        Vec r = Vec();
-        const int idx = (h - y - 1) * w + x;
-        for (int sy = 0; sy < 2; sy++) // 2x2 subpixel rows
-          for (int sx = 0; sx < 2; sx++)
-          { // 2x2 subpixel cols
-            real r1 = 2 * rr.drand(),
-                 dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-            real r2 = 2 * rr.drand(),
-                 dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-            Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
-                    cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
-            r = r +
-                radiance(Ray(cam.o + d * 140, d.norm()), 0, rr); //*(1./samps);
-          }
-        c[idx] = c[idx] + r;
-      }
+#pragma omp parallel
+    {
+      Rand48 rr(omp_get_thread_num());
+#pragma omp for shedule(dynamic)
+      for (int y = 0; y < h; y++)
+        for (unsigned short x = 0; x < w; x++) // Loop cols
+        {
+          Vec r = Vec();
+          const int idx = (h - y - 1) * w + x;
+          for (int sy = 0; sy < 2; sy++) // 2x2 subpixel rows
+            for (int sx = 0; sx < 2; sx++)
+            { // 2x2 subpixel cols
+              real r1 = 2 * rr.drand(),
+                   dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+              real r2 = 2 * rr.drand(),
+                   dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+              Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
+                      cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
+              r = r + radiance(Ray(cam.o + d * 140, d.norm()), 0,
+                               rr); //*(1./samps);
+            }
+          c[idx] = c[idx] + r;
+        }
+    }
   }
 
   for (int i = 0; i < w*h; i++)
