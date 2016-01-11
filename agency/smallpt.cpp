@@ -7,28 +7,45 @@
 #include <vector>
 #include <cassert>
 
+#ifndef __host__
+#define __host__
+#define HOST_NEED_UNDEF
+#endif
+
+#ifndef __device__
+#define __device__
+#define DEVICE_NEED_UNDEF
+#endif
+
+
 struct Rand48
 {
+  __host__ __device__
   double drand()
   {
     update();
     return (stat & 0xFFFFFFFFFFFF) * (1.0 / 281474976710656.0);
   }
+  __host__ __device__
   long lrand()
   {
     update();
     return (long)(stat >> 17) & 0x7FFFFFFF;
   }
+  __host__ __device__
   long mrand()
   {
     update();
     return (long)(stat >> 16) & 0xFFFFFFFF;
   }
+  __host__ __device__
   void srand(const long seed) { stat = (seed << 16) + 0x330E; }
+  __host__ __device__
   Rand48(const long seed = 0) { srand48(seed); }
 
 private:
   long long stat;
+  __host__ __device__
   void update() { stat = stat * 0x5DEECE66D + 0xB; }
 };
 
@@ -45,19 +62,28 @@ using real = float;
 struct Vec 
 {        // Usage: time ./smallpt 5000 && xv image.ppm
   real x, y, z;                  // position, also color (r,g,b)
+  __host__ __device__
   Vec(real x_=0, real y_=0, real z_=0) : x(x_), y(y_), z(z_) {}
+  __host__ __device__
   Vec operator+(const Vec &b) const { return Vec(x+b.x,y+b.y,z+b.z); }
+  __host__ __device__
   Vec operator-(const Vec &b) const { return Vec(x-b.x,y-b.y,z-b.z); }
+  __host__ __device__
   Vec operator*(const real b) const { return Vec(x*b,y*b,z*b); }
+  __host__ __device__
   Vec mult(const Vec &b) const { return Vec(x*b.x,y*b.y,z*b.z); }
+  __host__ __device__
   Vec& norm() { return *this = *this * (1/sqrt(x*x+y*y+z*z)); }
+  __host__ __device__
   real dot(const Vec &b) const { return x*b.x+y*b.y+z*b.z; } // cross:
+  __host__ __device__
   Vec operator%(Vec&b){return Vec(y*b.z-z*b.y,z*b.x-x*b.z,x*b.y-y*b.x);}
 };
 
 struct Ray 
 { 
   Vec o, d; 
+  __host__ __device__
   Ray(Vec o_, Vec d_) : o(o_), d(d_) {} 
 };
 
@@ -73,9 +99,11 @@ struct Sphere
   real rad;       // radius
   Vec p, e, c;      // position, emission, color
   Refl_t refl;      // reflection type (DIFFuse, SPECular, REFRactive)
+  __host__ __device__
   Sphere(real rad_, Vec p_, Vec e_, Vec c_, Refl_t refl_):
     rad(rad_), p(p_), e(e_), c(c_), refl(refl_) {}
 
+  __host__ __device__
   real intersect(const Ray &r) const 
   { // returns distance, 0 if nohit
     Vec op = p-r.o; // Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0
@@ -104,8 +132,10 @@ Sphere spheres[] =
 };
 
 using vec_t = Vec;
+__host__ __device__
 static inline real dot(const vec_t &a, const vec_t &b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
 
+__host__ __device__
 static real intersect(const Sphere &s, const Ray &r) 
 {
   const vec_t op   = s.p - r.o;
@@ -122,6 +152,7 @@ static real intersect(const Sphere &s, const Ray &r)
   return det > 0.0f ? t : 0.0f;
 }
 
+__host__ __device__
 static inline bool intersect(const Ray &r, real &t, int &id)
 {
   const real n=sizeof(spheres)/sizeof(Sphere);
@@ -136,6 +167,7 @@ static inline bool intersect(const Ray &r, real &t, int &id)
   return t<inf;
 }
 
+__host__ __device__
 Vec radiance(const Ray &r_, int depth_, Rand48 &rr)
 {
   real t;                               // distance to intersection
@@ -196,11 +228,13 @@ Vec radiance(const Ray &r_, int depth_, Rand48 &rr)
   }
 }
 
+__host__ __device__
 static inline real clamp(real x)
 { 
   return x<0 ? 0 : x>1 ? 1 : x; 
 }
 
+__host__ __device__
 static inline int toInt(real x)
 { 
   return int(pow(clamp(x),1/2.2)*255+.5); 
@@ -257,3 +291,13 @@ int main(int argc, char *argv[])
   for (int i=0; i<w*h; i++)
     fprintf(f,"%d %d %d ", toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
 }
+
+#ifdef HOST_NEED_UNDEF
+#undef __host__
+#undef HOST_NEED_UNDEF
+#endif
+
+#ifdef DEVICE_NEED_UNDEF
+#undef __device__
+#undef DEVICE_NEED_UNDEF
+#endif
