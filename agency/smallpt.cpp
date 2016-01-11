@@ -1,11 +1,15 @@
 #include <cmath>   // smallpt, a Path Tracer by Kevin Beason, 2008
 #include <cstdlib> // Make : g++ -O3 -fopenmp smallpt.cpp -o smallpt
 #include <cstdio>  //        Remove "-fopenmp" for g++ version < 4.2
-#include <omp.h>
 
 #include <stack>
 #include <vector>
 #include <cassert>
+
+#include <agency/execution_policy.hpp>
+#ifdef USE_CUDA
+#include <agency/cuda/execution_policy.hpp>
+#endif
 
 #ifndef __host__
 #define __host__
@@ -24,29 +28,29 @@ struct Rand48
   double drand()
   {
     update();
-    return (stat & 0xFFFFFFFFFFFF) * (1.0 / 281474976710656.0);
+    return (stat & 0xFFFFFFFFFFFFULL) * (1.0 / 281474976710656.0);
   }
   __host__ __device__
   long lrand()
   {
     update();
-    return (long)(stat >> 17) & 0x7FFFFFFF;
+    return (long)(stat >> 17) & 0x7FFFFFFFULL;
   }
   __host__ __device__
   long mrand()
   {
     update();
-    return (long)(stat >> 16) & 0xFFFFFFFF;
+    return (long)(stat >> 16) & 0xFFFFFFFFULL;
   }
   __host__ __device__
-  void srand(const long seed) { stat = (seed << 16) + 0x330E; }
+  void srand(const long seed) { stat = (seed << 16) + 0x330EFULL; }
   __host__ __device__
-  Rand48(const long seed = 0) { srand48(seed); }
+  Rand48(const long seed = 0) { srand(seed); }
 
 private:
-  long long stat;
+  unsigned long long stat;
   __host__ __device__
-  void update() { stat = stat * 0x5DEECE66D + 0xB; }
+  void update() { stat = stat * 0x5DEECE66DULL + 0xBULL; }
 };
 
 #if 0
@@ -131,22 +135,6 @@ Sphere spheres[] =
   Sphere(600, Vec(50,681.6-.27,81.6),Vec(12,12,12),  Vec(), Refl_t::DIFF) //Lite
 };
 
-__host__ __device__
-static real intersect(const Sphere &s, const Ray &r) 
-{
-  const Vec  op   = s.p - r.o;
-  const real b    = op.dot(r.d);
-  const real det2 = b*b - op.dot(op) + s.rad*s.rad;
-  
-  const real eps = 1.0e-4f;
-
-  const real det = det2 > 0.0f ? sqrt(det2) : 0.0f;
-  const real tm  = b - det;
-  const real tp  = b + det;
-  const real t0  = tm > eps ? tm : tp;
-  const real t  =  t0 > eps ? t0 : 0.0f;
-  return det > 0.0f ? t : 0.0f;
-}
 
 __host__ __device__
 static inline bool intersect(const Ray &r, real &t, int &id)
@@ -247,45 +235,51 @@ int main(int argc, char *argv[])
   Vec cx=Vec(w*.5135f/h);
   Vec cy=(cx%cam.d).norm()*.5135f;
   Vec r;
-  auto c = std::vector<Vec>(w*h);
+  auto c_vec = std::vector<Vec>(w*h);
+  auto c_ptr = c_vec.data();
 
   for (int s = 0; s < samps; s++)
   {
     fprintf(stderr, "\rRendering (%d spp) : %d ", samps * 4, s * 4);
 
-#pragma omp parallel for schedule(dynamic) collapse(2)
-    for (int y = 0; y < h; y++)
-      for (int x = 0; x < w; x++) // Loop cols
-      {
-        Vec r = Vec();
-        const int idx = (h - y - 1) * w + x;
-        Rand48 rr(idx);
-        for (int sy = 0; sy < 2; sy++) // 2x2 subpixel rows
-          for (int sx = 0; sx < 2; sx++)
-          { // 2x2 subpixel cols
-            real r1 = 2 * rr.drand(),
-                 dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-            real r2 = 2 * rr.drand(),
-                 dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
-            Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
-                    cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
-            r = r + radiance(Ray(cam.o + d * 140, d.norm()), 0,
-                             rr);
-          }
-        c[idx] = c[idx] + r;
-      }
+#ifndef USE_CUDA
+    auto exec_par = agency::par;
+#else
+    auto exec_par = agency::cuda::par;
+#endif
+
+    agency::bulk_invoke(
+        exec_par(w * h), [=] __device__(agency::parallel_agent & self) {
+          const int x = self.index() % w;
+          const int y = self.index() / w;
+          const int idx = (h - y - 1) * w + x;
+          auto r = c_ptr[idx];
+          Rand48 rr(idx + w * h * s);
+          for (int sy = 0; sy < 2; sy++) // 2x2 subpixel rows
+            for (int sx = 0; sx < 2; sx++)
+            { // 2x2 subpixel cols
+              real r1 = 2 * rr.drand(),
+                   dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+              real r2 = 2 * rr.drand(),
+                   dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+              Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
+                      cy * (((sy + .5 + dy) / 2 + y) / h - .5) + cam.d;
+              r = r + radiance(Ray(cam.o + d * 140, d.norm()), 0, rr);
+            }
+          c_ptr[idx] = r;
+        });
   }
 
   for (int i = 0; i < w*h; i++)
   {
-    c[i] = c[i]*(0.25f/samps); 
-    c[i] = Vec(clamp(c[i].x),clamp(c[i].y),clamp(c[i].z));
+    c_ptr[i] = c_ptr[i]*(0.25f/samps); 
+    c_ptr[i] = Vec(clamp(c_ptr[i].x),clamp(c_ptr[i].y),clamp(c_ptr[i].z));
   }
 
   FILE *f = fopen("image.ppm", "w");         // Write image to PPM file.
   fprintf(f, "P3\n%d %d\n%d\n", w, h, 255);
   for (int i=0; i<w*h; i++)
-    fprintf(f,"%d %d %d ", toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
+    fprintf(f,"%d %d %d ", toInt(c_ptr[i].x), toInt(c_ptr[i].y), toInt(c_ptr[i].z));
 }
 
 #ifdef HOST_NEED_UNDEF
