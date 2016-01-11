@@ -4,6 +4,7 @@
 
 #include <cmath>   // smallpt, a Path Tracer by Kevin Beason, 2008
 #include <cstdlib> // Make : g++ -O3 -fopenmp smallpt.cpp -o smallpt
+#include <chrono>
 #include <cstdio>  //        Remove "-fopenmp" for g++ version < 4.2
 
 #include <stack>
@@ -295,6 +296,7 @@ int main(int argc, char *argv[])
 
   Smallpt rt(scene_ptr, n_objects);
 
+  auto start = std::chrono::high_resolution_clock::now();
   for (int s = 0; s < samps; s++)
   {
     fprintf(stderr, "\rRendering (%d spp) : %d ", samps * 4, s * 4);
@@ -326,6 +328,8 @@ int main(int argc, char *argv[])
           c_ptr[idx] = r;
         });
   }
+  std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - start;
+  std::cout << "elapsed: " << elapsed.count() << " seconds\n";
 
   for (int i = 0; i < w*h; i++)
   {
