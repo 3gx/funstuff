@@ -64,7 +64,7 @@ using real = double;
 #define RR  (1.0e5)
 #else
 using real = float;
-#define EPS (1.0e-2)
+#define EPS (1.5e-2)
 #define RR  (1.0e4)
 #endif
 
