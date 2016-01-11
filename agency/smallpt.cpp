@@ -1,3 +1,7 @@
+#ifdef __CUDACC__
+#define USE_CUDA
+#endif
+
 #include <cmath>   // smallpt, a Path Tracer by Kevin Beason, 2008
 #include <cstdlib> // Make : g++ -O3 -fopenmp smallpt.cpp -o smallpt
 #include <cstdio>  //        Remove "-fopenmp" for g++ version < 4.2
