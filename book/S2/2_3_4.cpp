@@ -62,15 +62,15 @@ struct RValRef
 };
 
 template<char... Cs>
-struct metastring {};
-
-template<char... Cs>
-std::ostream& operator<<(std::ostream& os, metastring<Cs...>)
+struct metastring
 {
-  const char data[sizeof...(Cs)] = {Cs...};
-  os << data;
-  return os;
-}
+  friend std::ostream &operator<<(std::ostream &os, metastring)
+  {
+    const char data[sizeof...(Cs)] = {Cs...};
+    os << data;
+    return os;
+  }
+};
 
 template<size_t N, char... Cs>
 struct number_string
@@ -89,7 +89,7 @@ template<size_t N>
 struct Array
 {
   using metastring = typename number_string<N>::type;
-  static constexpr metastring get() 
+  static const metastring get() 
   {
     return metastring{};
   }
