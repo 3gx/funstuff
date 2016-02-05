@@ -6,44 +6,93 @@ struct type_to_string;
 template<>
 struct type_to_string<char>
 {
-  static constexpr auto  value = "char";
+  static constexpr const char *get(){return "char";};
 };
 template<>
 struct type_to_string<short int>
 {
-  static constexpr auto  value = "short int";
+  static constexpr const char *get(){return "short int";};
 };
 template<>
 struct type_to_string<int>
 {
-  static constexpr auto  value = "int";
+  static constexpr const char *get(){return "int";};
 };
 template<>
 struct type_to_string<long int>
 {
-  static constexpr auto  value = "long int";
+  static constexpr const char *get(){return "long int";}
 };
 
 
 struct Const 
 {
-  static constexpr auto value = " const";
+  static constexpr const char* get() 
+  {
+    return " const";
+  }
 };
 struct Volatile 
 {
-  static constexpr auto value = " volatile";
+  static constexpr const char* get() 
+  {
+    return " volatile";
+  }
 };
 struct Pointer
 {
-  static constexpr auto value = "*";
+  static constexpr const char* get() 
+  {
+    return "*";
+  }
 };
 struct LValRef
 {
-  static constexpr auto value = "&";
+  static constexpr const char* get() 
+  {
+    return "&";
+  }
 };
 struct RValRef
 {
-  static constexpr auto value = "&&";
+  static constexpr const char* get() 
+  {
+    return "&&";
+  }
+};
+
+template<char... Cs>
+struct metastring {};
+
+template<char... Cs>
+std::ostream& operator<<(std::ostream& os, metastring<Cs...>)
+{
+  const char data[sizeof...(Cs)] = {Cs...};
+  os << data;
+  return os;
+}
+
+template<size_t N, char... Cs>
+struct number_string
+{
+  using type = typename number_string<N/10, '0'+(N%10), Cs...>::type;
+};
+template<char... Cs>
+struct number_string<0,Cs...>
+{
+  using type = metastring<'*','[',Cs...,']'>;
+};
+
+
+
+template<size_t N>
+struct Array
+{
+  using metastring = typename number_string<N>::type;
+  static const metastring get() 
+  {
+    return metastring{};
+  }
 };
 
 
@@ -58,7 +107,7 @@ struct QualPrinter<Qual, Quals...>
 {
   friend std::ostream& operator<<(std::ostream& os, const QualPrinter&)
   {
-    os << Qual::value << QualPrinter<Quals...>();
+    os << Qual::get()<< QualPrinter<Quals...>();
     return os;
   }
 };
@@ -69,7 +118,7 @@ struct type_descriptor
 {
   friend std::ostream& operator<<(std::ostream& os, const type_descriptor&)
   {
-    os << type_to_string<Type>::value << QualPrinter<Quals...>();
+    os << type_to_string<Type>::get() << QualPrinter<Quals...>();
     return os;
   }
 };
@@ -88,6 +137,8 @@ struct type_descriptor<T &, Quals...> : type_descriptor<T, LValRef, Quals...> {}
 
 template <class T, class... Quals>
 struct type_descriptor<T &&, Quals...> : type_descriptor<T, RValRef, Quals...> {};
+template <class T, size_t N, class... Quals>
+struct type_descriptor<T *[N], Quals...> : type_descriptor<T, Array<N>, Quals...> {};
 
 
 int main()
@@ -103,4 +154,5 @@ int main()
   cout << type_descriptor<int const* volatile >() << endl;
   cout << type_descriptor<int * volatile >() << endl;
   cout << type_descriptor<long const* volatile>() << endl;
+  cout << type_descriptor<long const*[29]>() << endl;
 }
