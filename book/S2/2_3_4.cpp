@@ -89,7 +89,7 @@ template<size_t N>
 struct Array
 {
   using metastring = typename number_string<N>::type;
-  static const metastring get() 
+  static constexpr metastring get() 
   {
     return metastring{};
   }
