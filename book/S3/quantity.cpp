@@ -94,6 +94,8 @@ int main()
 
   quantity<float, mass> m_earth = f_earth/g_earth;
 
+  quantity<float, force> f = f_earth + m_mars*g_earth;
+
   auto diff = m_earth - m;
   if (diff.value < 1.0e-7 && -diff.value < 1.0e-7)
     return 0;
