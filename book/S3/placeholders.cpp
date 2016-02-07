@@ -42,11 +42,6 @@ template<class T>
 struct mytype<T>
 {
   T value;
-  template<class... Ts>
-  struct apply
-  {
-    using type = mytype<typename T::template apply<Ts...>::type>;
-  };
 };
 
 template<class T, class U>
@@ -54,13 +49,6 @@ struct mytype<T,U>
 {
   T valueT;
   U valueU;
-  template<class... Ts>
-  struct apply
-  {
-    using type = mytype<
-      typename T::template apply<Ts...>::type,
-      typename U::template apply<Ts...>::type>;
-  };
 };
 
 
@@ -110,6 +98,6 @@ int main()
 
   using type_mytype_1 = apply_t<mytype<_1>, vector<_1>>;
   using mytype_vec_int = apply_t<type_mytype_1, int>;
-  TD<mytype_vec_int> td;
+//  TD<mytype_vec_int> td;
 
 }
