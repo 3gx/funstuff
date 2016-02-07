@@ -62,9 +62,7 @@ struct mytype<T,U>
     using type = mytype<
       typename T::template apply<Ts...>::type,
       typename U::template apply<Ts...>::type>;
-
   };
-
 };
 
 
