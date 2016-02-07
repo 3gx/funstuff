@@ -35,6 +35,22 @@ using _3 = arg<3>;
 
 using _ = arg<-1>;
 
+template<class P, class... Ts>
+struct apply
+{
+  using type = typename P::template apply<Ts...>::type;
+};
+
+template<class T, class... Ts>
+using apply_t = typename apply<T,Ts...>::type;
+
+template<template<class...> class T, class... Ps, class... Ts>
+struct apply<T<Ps...>,Ts...>
+{
+  using type = T<apply_t<Ps, Ts...>...>;
+};
+/*--------------------------*/
+
 template<class...>
 struct mytype;
 
@@ -51,25 +67,6 @@ struct mytype<T,U>
   U valueU;
 };
 
-
-template<class P, class... Ts>
-struct apply
-{
-  using type = typename P::template apply<Ts...>::type;
-};
-
-template<class T, class... Ts>
-using apply_t = typename apply<T,Ts...>::type;
-
-template<template<class...> class T, class... Ps, class... Ts>
-struct apply<T<Ps...>,Ts...>
-{
-  using type = T<apply_t<Ps, Ts...>...>;
-};
-
-template<class T>
-class TD;
-
 template<class A, class B>
 struct AB
 {
@@ -82,6 +79,9 @@ struct vector
 {
   T data[32];
 };
+
+template<class T>
+class TD;
 
 int main()
 {
@@ -98,6 +98,6 @@ int main()
 
   using type_mytype_1 = apply_t<mytype<_1>, vector<_1>>;
   using mytype_vec_int = apply_t<type_mytype_1, int>;
-//  TD<mytype_vec_int> td;
+  TD<mytype_vec_int> td;
 
 }
