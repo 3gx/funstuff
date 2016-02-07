@@ -1,7 +1,5 @@
 template<int N> struct arg;
 
-struct void_;
-
 template<>
 struct arg<1>
 {
