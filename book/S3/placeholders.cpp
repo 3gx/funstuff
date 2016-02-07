@@ -35,19 +35,25 @@ using _3 = arg<3>;
 
 using _ = arg<-1>;
 
-template<class P, class... Ts>
+template<class T, class... Ts>
 struct apply
 {
-  using type = typename P::template apply<Ts...>::type;
+  using type = T;
+};
+
+template<int N, class... Ts>
+struct apply<arg<N>,Ts...>
+{
+  using type = typename arg<N>::template apply<Ts...>::type;
 };
 
 template<class T, class... Ts>
 using apply_t = typename apply<T,Ts...>::type;
 
-template<template<class...> class T, class... Ps, class... Ts>
-struct apply<T<Ps...>,Ts...>
+template<template<class...> class T, class... Rs, class... Ts>
+struct apply<T<Rs...>,Ts...>
 {
-  using type = T<apply_t<Ps, Ts...>...>;
+  using type = T<apply_t<Rs, Ts...>...>;
 };
 /*--------------------------*/
 
@@ -85,6 +91,7 @@ class TD;
 
 int main()
 {
+  using type_xxx =apply_t<mytype<int>, float>;
   using type_int = apply_t<mytype<_3,_1>, int, float,char>;
 //  TD<type_int> td;
 //
