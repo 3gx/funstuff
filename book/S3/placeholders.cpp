@@ -66,13 +66,19 @@ struct mytype<T,U>
 };
 
 
-template<class, class...>
-struct apply;
+template<class P, class... Ts>
+struct apply
+{
+  using type = typename P::template apply<Ts...>::type;
+};
+
+template<class T, class... Ts>
+using apply_t = typename apply<T,Ts...>::type;
 
 template<template<class...> class T, class... Ps, class... Ts>
 struct apply<T<Ps...>,Ts...>
 {
-  using type = T<typename Ps::template apply<Ts...>::type...>;
+  using type = T<apply_t<Ps, Ts...>...>;
 };
 
 template<class T>
@@ -85,10 +91,27 @@ struct AB
   B b;
 };
 
+template<class T>
+struct vector
+{
+  T data[32];
+};
+
 int main()
 {
-  using type_int = typename apply<mytype<_3,_1>, int, float,char>::type;
+  using type_int = apply_t<mytype<_3,_1>, int, float,char>;
+//  TD<type_int> td;
+//
   using type_AB = AB<mytype<_3>, mytype<_2,_1>>;
-  using type_abc = typename apply<type_AB, int,float,char>::type;
-  TD<type_abc> td;
+  using type_abc = apply_t<type_AB, int,float,char>;
+//  TD<type_abc> td;
+
+  using type_1 = apply_t<_1, vector<_1>>;
+  using vec_int = apply_t<type_1,int>;
+//  TD<vec_int> td;
+
+  using type_mytype_1 = apply_t<mytype<_1>, vector<_1>>;
+  using mytype_vec_int = apply_t<type_mytype_1, int>;
+  TD<mytype_vec_int> td;
+
 }
