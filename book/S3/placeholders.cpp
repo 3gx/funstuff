@@ -1,4 +1,4 @@
-template<int N> struct arg;
+template<int> struct arg;
 
 template<>
 struct arg<1>
