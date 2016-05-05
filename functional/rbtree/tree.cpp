@@ -82,14 +82,13 @@ struct Tree
     else
       return true;
   }
-
-  void walk() const
+  void walk(int depth = 0) const
   {
     if (isEmpty())
       return;
-    left().walk();
-    cout << root_->val << endl;
-    right().walk();
+    left().walk(depth+1);
+    cout << "depth= " << depth << "  value= " << root_->val << endl;
+    right().walk(depth+1);
 
   }
 
