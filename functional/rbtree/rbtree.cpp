@@ -9,7 +9,7 @@ using std::cout;
 using std::endl;
 
 template<class T>
-struct Tree
+struct RBTree
 {
   struct Node
   {
@@ -21,18 +21,18 @@ struct Tree
 
   };
   shared_ptr<const Node> root_;
-  explicit Tree(shared_ptr<const Node> const& node) : root_(node) {}
+  explicit RBTree(shared_ptr<const Node> const& node) : root_(node) {}
 
-  Tree() {}; // empty tree
-  Tree(Tree const& lft, T val, Tree const & rgt) :
+  RBTree() {}; // empty tree
+  RBTree(RBTree const& lft, T val, RBTree const & rgt) :
     root_(make_shared<const Node>(lft.root_, val, rgt.root_))
   {
     assert(lft.isEmpty() || lft.root() < val);
     assert(rgt.isEmpty() || val < rgt.root());
   }
-  Tree(initializer_list<T> init)
+  RBTree(initializer_list<T> init)
   {
-    Tree t;
+    RBTree t;
     for (T v : init)
     {
       t = t.insert(v);
@@ -46,26 +46,26 @@ struct Tree
     assert(!isEmpty());
     return root_->val;
   }
-  Tree left() const 
+  RBTree left() const 
   {
     assert(!isEmpty());
-    return Tree(root_->lft);
+    return RBTree(root_->lft);
   }
-  Tree right() const 
+  RBTree right() const 
   {
     assert(!isEmpty());
-    return Tree(root_->rgt);
+    return RBTree(root_->rgt);
   }
 
-  Tree insert(T x) const
+  RBTree insert(T x) const
   {
     if (isEmpty())
-      return Tree(Tree(), x, Tree());
+      return RBTree(RBTree(), x, RBTree());
     T y = root();
     if (x<y)
-        return Tree(left().insert(x), y, right());
+        return RBTree(left().insert(x), y, right());
     else if (y < x)
-      return Tree(left(), y, right().insert(x));
+      return RBTree(left(), y, right().insert(x));
     else
       return *this; /* no duplicates */
   }
@@ -83,13 +83,13 @@ struct Tree
       return true;
   }
 
-  void walk() const
+  void walk(int depth = 0) const
   {
     if (isEmpty())
       return;
-    left().walk();
-    cout << root_->val << endl;
-    right().walk();
+    left().walk(depth+1);
+    cout << "depth= " << depth << "  value= " << root_->val << endl;
+    right().walk(depth+1);
 
   }
 
@@ -97,6 +97,9 @@ struct Tree
 
 int main()
 {
-  Tree<int> t{ 50, 40, 30, 10, 20, 30, 100, 0, 45, 55, 25, 15 };
+  RBTree<int> t{ 50, 40, 30, 10, 20, 30, 100, 0, 45, 55, 25, 15 };
   t.walk();
+  cout << endl;
+  RBTree<int> t1{ 50, 40, 30, 20, 10, 9,8,7,6,5,4,3,2,1};
+  t1.walk();
 }
