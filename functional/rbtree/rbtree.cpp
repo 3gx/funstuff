@@ -11,21 +11,25 @@ using std::endl;
 template<class T>
 struct RBTree
 {
+  enum Color {R, B};
   struct Node
   {
+    Color c;
     shared_ptr<const Node> lft;
     T val;
     shared_ptr<const Node> rgt;
-    Node(shared_ptr<const Node> const & lft, T val, shared_ptr<const Node> const &rgt) :
-        lft(lft), val(val), rgt(rgt) {}
-
+    Node(Color c, shared_ptr<const Node> const &lft, T val,
+         shared_ptr<const Node> const &rgt)
+        : c(c), lft(lft), val(val), rgt(rgt)
+    {
+    }
   };
   shared_ptr<const Node> root_;
   explicit RBTree(shared_ptr<const Node> const& node) : root_(node) {}
 
   RBTree() {}; // empty tree
-  RBTree(RBTree const& lft, T val, RBTree const & rgt) :
-    root_(make_shared<const Node>(lft.root_, val, rgt.root_))
+  RBTree(Color c, RBTree const& lft, T val, RBTree const & rgt) :
+    root_(c, make_shared<const Node>(lft.root_, val, rgt.root_))
   {
     assert(lft.isEmpty() || lft.root() < val);
     assert(rgt.isEmpty() || val < rgt.root());
@@ -56,8 +60,14 @@ struct RBTree
     assert(!isEmpty());
     return RBTree(root_->rgt);
   }
+  Color rootColor() const
+  {
+    assert(!isEmpty());
+    return root_->c;
+  }
 
-  RBTree insert(T x) const
+#if 0
+  RBTree insert_unballanced(T x) const
   {
     if (isEmpty())
       return RBTree(RBTree(), x, RBTree());
@@ -68,6 +78,40 @@ struct RBTree
       return RBTree(left(), y, right().insert(x));
     else
       return *this; /* no duplicates */
+  }
+#endif
+
+  RBTree insert(T x) const
+  {
+    RBTree t = ins(x);
+    return RBTree(B, t.left(), t.root(), t.right());
+  }
+
+  RBTree ins(T x) const
+  {
+    if (is_Rmpty())
+      return RBTree(R, RBTree(), x, RBTree());
+    T y = root();
+    Color c = rootColor();
+    if (x < y)
+      return balance(c, left().ins(x), y, right());
+    else if (y < x)
+      return balance(c, left(), y, right().ins(x));
+    else
+      return *this; // no duplicates
+  }
+
+  static RBTree balance(Color c, RBTree const &lft, T x, RBTree const &rgt) 
+  {
+    if (c == B && lft.doubleLeft())
+    {
+      return RBTree(R, lft.left().paint(B), lft.root(),
+                    RBTree(B, lft.rigth(), x, rgt));
+    }
+    else if (c == B && lft.doubledRight())
+    {
+      return RBTree(R, RBTree(
+    }
   }
 
   bool member(T x) const
