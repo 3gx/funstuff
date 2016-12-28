@@ -1,0 +1,1 @@
+https://www.schoolofhaskell.com/user/bartosz/basics-of-haskell
