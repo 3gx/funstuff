@@ -1,5 +1,7 @@
 --
 
+import Data.Char
+
 data Operator = Plus | Minus | Times | Div deriving (Show,Eq)
 
 opToChar :: Operator -> Char
@@ -20,6 +22,7 @@ opToStr Div   = "/"
 data Token = TokOp Operator 
            | TokIdent String
            | TokNum Int
+           | TokSpace
         deriving (Show,Eq)
 
 showContent :: Token -> String
@@ -38,30 +41,42 @@ operator c | c == '+' = Plus
 
 
 
+tokenizeChar :: Char -> Token
+tokenizeChar c
+  | elem c "+/-*" = TokOp (operator c) 
+  | isDigit c     = TokNum (digitToInt c) 
+  | isAlpha c     = TokIdent [c] 
+  | isSpace c     = TokSpace
+  | otherwise = error $ "Cannot tokenizeChar " ++ [c]
+
 tokenize :: String -> [Token]
-tokenize [] = []
-tokenize (c:cs) 
-  | elem c "+/-*" = TokOp (operator c) : tokenize cs
-  | isDigit c     = TokNum (digitToInt c) : tokenize cs
-  | isAlpha c     = TokIdent [c] : tokenize cs
-  | isSpace c     = tokenize cs
-  | otherwise = error $ "Cannot tokenize " ++ [c]
+tokenize = map tokenizeChar
 
-isDigit :: Char -> Bool
-isDigit c = elem c ['0'..'9']
+-- isDigit :: Char -> Bool
+-- isDigit c = elem c ['0'..'9']
 
-isAlpha :: Char -> Bool
-isAlpha c = elem c $ ['a'..'z'] ++ ['A'..'Z']
+-- isAlpha :: Char -> Bool
+-- isAlpha c = elem c $ ['a'..'z'] ++ ['A'..'Z']
 
-isSpace :: Char -> Bool
-isSpace c = elem c $ " "
+-- isSpace :: Char -> Bool
+-- isSpace c = elem c $ " "
 
-digitToInt :: Char -> Int
-digitToInt c | isDigit c = fromEnum c - 48
+-- digitToInt :: Char -> Int
+-- digitToInt c | isDigit c = fromEnum c - 48
 
 digitToInts :: String -> [Int]
-digitToInts [] = []
-digitToInts (x:xs) = digitToInt x : digitToInts xs
+digitToInts = map digitToInt
+
+deSpace :: [Token] -> [Token]
+deSpace = filter (\t -> t /= TokSpace)
+
+alnums :: String -> (String, String)
+alnums str = als "" str
+  where
+    als acc [] = (acc, [])
+    als acc (c:cs) | isAlphaNum c = als (c:acc) cs
+                   | otherwise = (reverse(acc), c:cs)
+      
 
 
 main = do 
@@ -69,5 +84,6 @@ main = do
   print token
   print $ operator '*'
   print $ tokenize "**/+"
-  print $ tokenize "1 + 4 / x"
+  print $ deSpace $ tokenize "1 + 4 / x"
   print $ digitToInts "1234"
+  print $ alnums "R2D2+C3Po"
