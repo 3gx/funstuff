@@ -23,4 +23,6 @@ tokenize (c : rest) = case (isDigit c) of
       False -> Alpha : tokenize rest
 tokenize [] = []
 
-main = print $ tokenize "passwd123"
+main = do 
+  print $ tokenize "passwd123"
+  print $ isElem Digit [Digit,Alpha]
