@@ -87,6 +87,13 @@ alnums' str = let (_, als, rest) = foldl f (True, [], []) str
                           | otherwise = (False, als, [c])
     f(False, als, rest) c = (False, als, rest ++ [c])
 
+
+digits :: String -> (String, String)
+digits str = digs [] str
+  where
+    digs acc [] = (acc, [])
+    digs acc (c:cs) | isDigit c = digs (c:acc) cs
+                    | otherwise = (reverse(acc), c:cs)
       
 
 rev :: String -> String
@@ -94,6 +101,23 @@ rev  = foldl (\acc a -> a:acc) []
 
 cpy :: String -> String
 cpy = foldr (\a acc -> a:acc) []
+
+span' :: (a->Bool) -> [a] -> ([a],[a])
+span' pred str = spanAcc [] str
+  where
+    spanAcc acc [] = (acc, [])
+    spanAcc acc (c:cs) | pred c = spanAcc (c:acc) cs
+                       | otherwise = (reverse(acc), c:cs)
+
+span'' :: (a->Bool) -> [a] -> ([a],[a])
+span'' pred str = 
+  let -- define helper 
+    spanAcc acc [] = (acc, [])
+    spanAcc acc (c:cs) | pred c = spanAcc (c:acc) cs
+                       | otherwise = (reverse(acc), c:cs)
+  in
+    spanAcc [] str
+                                
 
 main = do 
   putStrLn $ showContent token
@@ -108,3 +132,7 @@ main = do
   print $ alnums' "a14"
   print $ rev "1234"
   print $ cpy "1234"
+  print $ digits "1234abc 5678"
+  print $ span' (\c -> isAlphaNum c) "R2D2+C3Po"
+  print $ span' isAlphaNum  "R2D2+C3Po"
+  print $ span'' isDigit "1234abc 5678"
