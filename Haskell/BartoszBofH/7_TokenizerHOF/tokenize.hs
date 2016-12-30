@@ -76,8 +76,24 @@ alnums str = als "" str
     als acc [] = (acc, [])
     als acc (c:cs) | isAlphaNum c = als (c:acc) cs
                    | otherwise = (reverse(acc), c:cs)
+
+-- Scales with O(N^2), N = len(str)
+type Accum = (Bool, String, String)
+alnums' :: String -> (String,String)
+alnums' str = let (_, als, rest) = foldl f (True, [], []) str
+              in (als, rest)
+  where
+    f(True, als, rest) c  | isAlphaNum c = (True, als ++ [c], rest)
+                          | otherwise = (False, als, [c])
+    f(False, als, rest) c = (False, als, rest ++ [c])
+
       
 
+rev :: String -> String
+rev  = foldl (\acc a -> a:acc) []
+
+cpy :: String -> String
+cpy = foldr (\a acc -> a:acc) []
 
 main = do 
   putStrLn $ showContent token
@@ -87,3 +103,8 @@ main = do
   print $ deSpace $ tokenize "1 + 4 / x"
   print $ digitToInts "1234"
   print $ alnums "R2D2+C3Po"
+  print $ alnums "a14"
+  print $ alnums' "R2D2+C3Po"
+  print $ alnums' "a14"
+  print $ rev "1234"
+  print $ cpy "1234"
