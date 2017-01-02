@@ -36,6 +36,15 @@ identifier c cs = let (str, cs') = span isAlphaNum cs in
 number c cs = let (digs, cs') = span isDigit cs in
               TokNum (read (c:digs)) : tokenize cs'
 
+-- parser --
+
+data Tree = SumNode Operator Tree Tree
+          | ProdNode Operator Tree Tree
+          | AssignNode String Tree
+          | UnaryNode Operator Tree
+          | NumMode Double
+          | VarNode String
+    deriving (Show)
 
 main = do
   print $ tokenize "x1 = 23/(2+3) "
