@@ -37,6 +37,17 @@ number c cs = let (digs, cs') = span isDigit cs in
               TokNum (read (c:digs)) : tokenize cs'
 
 -- parser --
+{-| Grammer
+ Expression = Term [+-] Expression 
+             | Identifier '=' Expression
+             | Term
+ Term       = Factor [*/] Term
+             | Factor
+ Factor     = Number 
+             | Identifier 
+             | [+-] Factor 
+             | '(' Expression ')' 
+|-}
 
 data Tree = SumNode Operator Tree Tree
           | ProdNode Operator Tree Tree
