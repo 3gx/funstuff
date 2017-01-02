@@ -1,4 +1,4 @@
-all: toke.x parser.x
+all: run
 
 toke.x: toke.hs
 	ghc toke.hs -o toke.x
@@ -6,4 +6,5 @@ toke.x: toke.hs
 parser.x: parser.hs
 	ghc parser.hs -o parser.x
 
-run: 
+run:  parser.x
+	./parser.x
