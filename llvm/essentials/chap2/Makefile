@@ -9,13 +9,16 @@ LLVM_LIBS=$(shell $(LLVM_BIN)/llvm-config --libs --system-libs $(LLVM_MODULES))
 CXX=clang++
 LD=$(CXX)
 
-all: simple.x
+all: run
+
+run: simple.x
+	./simple.x
 
 simple.o: simple.cpp
-	$(CXX) simple.cpp -c -o simple.o  $(LLVM_CXXFLAGS)
+	$(CXX) $< -c -o $@  $(LLVM_CXXFLAGS)
 
 simple.x: simple.o
-	$(LD) simple.o  -o simple.x $(LLVM_LDFLAGS) $(LLVM_LIBS)
+	$(LD) $^  -o $@ $(LLVM_LDFLAGS) $(LLVM_LIBS)
  
 clean:
 	/bin/rm -f simple.o simple.x
