@@ -16,9 +16,18 @@ llvm::Function *createFunc(llvm::IRBuilder<> &Builder, std::string Name)
   return fooFunc;
 }
 
+llvm::BasicBlock *createBB(llvm::Function *fooFunc, std::string Name)
+{
+  return llvm::BasicBlock::Create(Context, Name, fooFunc);
+}
+
 int main(int argc, char *argv[]) {
   static llvm::IRBuilder<> Builder(Context);
   llvm::Function *fooFunc = createFunc(Builder, "foo");
+
+  llvm::BasicBlock* entry = createBB(fooFunc, "entry");
+  Builder.SetInsertPoint(entry);
+
   llvm::verifyFunction(*fooFunc);
   ModuleOb->dump();
   return 0;
