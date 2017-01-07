@@ -40,6 +40,9 @@ int main(int argc, char *argv[]) {
   llvm::BasicBlock* entry = createBB(fooFunc, "entry");
   Builder.SetInsertPoint(entry);
 
+  //Builder.CreateRet(Builder.getInt32(0));
+  Builder.CreateRet(gVar);
+
   llvm::verifyFunction(*fooFunc);
   ModuleOb->dump();
   return 0;
