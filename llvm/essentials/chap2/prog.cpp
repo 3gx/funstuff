@@ -16,13 +16,25 @@ llvm::Function *createFunc(llvm::IRBuilder<> &Builder, std::string Name)
   return fooFunc;
 }
 
+llvm::GlobalVariable *createGlob(llvm::IRBuilder<> &Builder, std::string Name) {
+  ModuleOb->getOrInsertGlobal(Name, Builder.getInt32Ty());
+  llvm::GlobalVariable *gVar = ModuleOb->getNamedGlobal(Name);
+  gVar->setLinkage(llvm::GlobalValue::CommonLinkage);
+  gVar->setAlignment(4);
+  return gVar;
+}
+
 llvm::BasicBlock *createBB(llvm::Function *fooFunc, std::string Name)
 {
   return llvm::BasicBlock::Create(Context, Name, fooFunc);
 }
 
+
 int main(int argc, char *argv[]) {
   static llvm::IRBuilder<> Builder(Context);
+
+  llvm::GlobalVariable *gVar = createGlob(Builder, "x");
+
   llvm::Function *fooFunc = createFunc(Builder, "foo");
 
   llvm::BasicBlock* entry = createBB(fooFunc, "entry");
