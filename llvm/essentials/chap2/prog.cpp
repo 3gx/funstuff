@@ -42,6 +42,10 @@ void setFuncArgs(llvm::Function *fooFunc, std::vector<std::string> &FunArgs) {
   }
 }
 
+llvm::Value *createArith(llvm::IRBuilder<> &Builder, llvm::Value *L,
+                         llvm::Value *R) {
+  return Builder.CreateMul(L, R, "multmp");
+}
 
 int main(int argc, char *argv[]) {
   FunArgs.push_back("a");
@@ -55,8 +59,13 @@ int main(int argc, char *argv[]) {
   llvm::BasicBlock* entry = createBB(fooFunc, "entry");
   Builder.SetInsertPoint(entry);
 
+  llvm::Value *Arg1 = &*fooFunc->arg_begin();
+  llvm::Value *constant = Builder.getInt32(16);
+  llvm::Value *val = createArith(Builder, Arg1, constant);
+  llvm::Value *val1 = createArith(Builder, val, gVar);
+
   //Builder.CreateRet(Builder.getInt32(0));
-  Builder.CreateRet(gVar);
+  Builder.CreateRet(val1);
 
   llvm::verifyFunction(*fooFunc);
   ModuleOb->dump();
