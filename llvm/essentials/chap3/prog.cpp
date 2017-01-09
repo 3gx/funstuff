@@ -9,6 +9,18 @@ static llvm::LLVMContext &Context = llvm::getGlobalContext();
 static llvm::Module *ModuleOb = new llvm::Module("my compiler", Context);
 static std::vector<std::string> FunArgs;
 
+llvm::Function *createFunc(llvm::IRBuilder<> &Builder, std::string Name) {
+  llvm::Type *u32Ty = llvm::Type::getInt32Ty(Context);
+  llvm::Type *vecTy = llvm::VectorType::get(u32Ty,2);
+  llvm::Type *ptrTy = vecTy->getPointerTo(0);
+  llvm::FunctionType *funcType =
+      llvm::FunctionType::get(Builder.getInt32Ty(), ptrTy, false);
+  llvm::Function *fooFunc = llvm::Function::Create(
+      funcType, llvm::Function::ExternalLinkage, Name, ModuleOb);
+  return fooFunc;
+}
+
+#if 0
 typedef llvm::SmallVector<llvm::BasicBlock*, 16> BBList;
 typedef llvm::SmallVector<llvm::Value*, 16> ValList;
 
@@ -30,6 +42,7 @@ llvm::GlobalVariable *createGlob(llvm::IRBuilder<> &Builder, std::string Name) {
   gVar->setAlignment(4);
   return gVar;
 }
+#endif
 
 llvm::BasicBlock *createBB(llvm::Function *fooFunc, std::string Name)
 {
@@ -45,6 +58,32 @@ void setFuncArgs(llvm::Function *fooFunc, std::vector<std::string> &FunArgs) {
   }
 }
 
+llvm::Value *getGEP(llvm::IRBuilder<> &Builder, llvm::Value *Base,
+                    llvm::Value *Offset) {
+  return Builder.CreateGEP(Builder.getInt32Ty(), Base, Offset, "a1");
+}
+
+llvm::Value *getLoad(llvm::IRBuilder<> &Builder, llvm::Value *Address) {
+  return Builder.CreateLoad(Address, "load");
+}
+
+void getStore(llvm::IRBuilder<> &Builder, llvm::Value *Address,
+              llvm::Value *V) {
+  Builder.CreateStore(V, Address);
+}
+
+llvm::Value *getInsertElement(llvm::IRBuilder<> &Builder, llvm::Value *Vec, 
+    llvm::Value *Val, llvm::Value *Index)
+{
+  return Builder.CreateInsertElement(Vec, Val, Index);
+}
+
+llvm::Value *getExtractElement(llvm::IRBuilder<> &Builder, llvm::Value *Vec,
+                               llvm::Value *Index) {
+  return Builder.CreateExtractElement(Vec, Index);
+}
+
+#if 0
 llvm::Value *createIfElse(llvm::IRBuilder<> &Builder, BBList &List,
                           ValList &VL) {
   llvm::Value *Condtn = VL[0];
@@ -96,6 +135,7 @@ llvm::Value *createLoop(llvm::IRBuilder<> &Builder, BBList List, ValList VL,
   IndVar->addIncoming(NextVal, LoopEndBB);
   return Add;
 }
+#endif
 
 llvm::Value *createArith(llvm::IRBuilder<> &Builder, llvm::Value *L,
                          llvm::Value *R) {
@@ -104,6 +144,40 @@ llvm::Value *createArith(llvm::IRBuilder<> &Builder, llvm::Value *L,
 
 int main(int argc, char *argv[]) {
   FunArgs.push_back("a");
+  static llvm::IRBuilder<> Builder(Context);
+  
+  llvm::Function *fooFunc = createFunc(Builder, "foo");
+  setFuncArgs(fooFunc, FunArgs);
+  
+  llvm::BasicBlock* entry = createBB(fooFunc, "entry");
+  Builder.SetInsertPoint(entry);
+
+  llvm::Value *Base = &*fooFunc->arg_begin();
+  llvm::SmallVector<llvm::Value*, 4> Vload;
+  for (size_t i = 0; i < 4; ++i) {
+    Vload[i] = getInsertElement(Builder, Base, Builder.getInt32((i + 1) * 10),
+                                Builder.getInt32(i));
+  }
+  auto gep = getGEP(Builder, Vload[3], Builder.getInt32(1));
+  llvm::Value *load = getLoad(Builder, gep);
+
+  llvm::Value *constant = Builder.getInt32(16);
+  llvm::Value *val = createArith(Builder, load, constant);
+  getStore(Builder, gep, val);
+
+  auto Vec = Base;
+  llvm::SmallVector<llvm::Value*, 4> Vvec;
+  for (size_t i = 0; i < 4; ++i) {
+    Vvec[i] = getExtractElement(Builder, Vec, Builder.getInt32(i));
+  }
+  auto add1 = createArith(Builder, Vvec[0], Vvec[1]);
+  auto add2 = createArith(Builder, add1, Vvec[2]);
+  auto add3 = createArith(Builder, add2, Vvec[3]);
+  auto add = createArith(Builder, add3, val);
+
+  Builder.CreateRet(add);
+
+#if 0
   FunArgs.push_back("b");
   static llvm::IRBuilder<> Builder(Context);
 
@@ -154,6 +228,7 @@ int main(int argc, char *argv[]) {
 
 
   Builder.CreateRet(Res);
+#endif
 
   llvm::verifyFunction(*fooFunc);
   ModuleOb->dump();
