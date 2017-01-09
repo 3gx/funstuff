@@ -31,7 +31,24 @@ pretty_print = cata pretty_alg
 testExpr = Fx $ (Fx $ (Fx $ Const 2) `Add` (Fx $ Const 3)) `Mul`
                 (Fx $ Const 4)
 
+
+-- ListF
+
+data ListF a b = Nil | Cons a b
+
+instance Functor (ListF a) where
+  fmap f Nil = Nil
+  fmap f (Cons e x) = Cons e (f x)
+
+algSum :: ListF Int Int -> Int
+algSum Nil = 0
+algSum (Cons e acc) = e + acc
+
+lst :: Fix (ListF Int)
+lst = Fx $ Cons 2 (Fx $ Cons 3 (Fx $ Cons 4 (Fx Nil)))
+
 main = do
   print $ eval $ testExpr
   print $ pretty_print $ testExpr
+  print $ cata algSum lst
                

@@ -78,9 +78,25 @@ cata alg = alg. fmap (cata alg) . unFix
 eval :: Fix ExprF -> Int
 eval = alg . fmap eval . unFix
 
+-- ListF algebra
+
+data ListF a b = Nil | Cons a b deriving (Show)
+
+instance Functor (ListF a) where
+  fmap f Nil = Nil
+  fmap f (Cons e x) = Cons e (f x)
+
+algSum :: ListF Int Int -> Int
+algSum Nil = 0
+algSum (Cons e acc) = e + acc
+
+lst :: Fix (ListF Int)
+lst = In $ Cons 2 (In $ Cons 3 (In $ Cons 4 (In Nil)))
+
 
 main = do
   print "123"
   print $ fmap alg testExpr'
   print $ eval $ testExpr
   print $ cata pretty $ testExpr
+  print $ cata algSum lst
