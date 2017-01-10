@@ -28,6 +28,17 @@ ycomb' = \f -> f $ \x -> (ycomb' f) x
 factorial' = ycomb almost_factorial
 factorial'' = ycomb' almost_factorial
 
+fix = \f -> f (fix f)
+fact = fix almost_factorial
+---
+
+--part_factorial :: (Integer->Integer)->Integer->Integer
+--part_factorial  self n= if (n == 0) then 1 else n * (self (n-1))
+--part_factorial  self = \n -> if (n == 0) then 1 else n * ((self self) (n-1))
+--
+
+--ycomb1 = \x -> f (\y -> (x x) y)
+
 main = do
   print $ factorial 3
   print $ factorial 6
