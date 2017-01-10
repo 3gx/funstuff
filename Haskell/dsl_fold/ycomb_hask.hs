@@ -1,3 +1,4 @@
+-- http://rosettacode.org/wiki/Y_combinator#C.2B.2B
 newtype Mu a = Roll { unroll :: Mu a -> a }
  
 fix :: (a -> a) -> a
