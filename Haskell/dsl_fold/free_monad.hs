@@ -4,6 +4,8 @@
 
 {-# LANGUAGE UndecidableInstances #-}
 
+import GHC.IO
+
 
 data Toy b next = Output b next
                 | Bell next
@@ -111,6 +113,14 @@ showProgram (Free (Bell x)) = "bell\n" ++ showProgram x
 showProgram (Free Done) = "done\n"
 showProgram (Pure r) = "return " ++ show r ++ "\n"
 
+ringBell :: IO()
+ringBell = print "Ding!"
+
+interpret :: (Show b) => Free (Toy b) r -> IO()
+interpret (Free (Output b x)) = print b  >> interpret x
+interpret (Free (Bell     x)) = ringBell >> interpret x
+interpret (Free (Done      )) = return()
+interpret (Pure r) = throwIO (userError " Improper termination")
 
 
 main = do
