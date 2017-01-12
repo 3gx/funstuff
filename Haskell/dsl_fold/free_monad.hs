@@ -122,6 +122,9 @@ interpret (Free (Bell     x)) = ringBell >> interpret x
 interpret (Free (Done      )) = return()
 interpret (Pure r) = throwIO (userError " Improper termination")
 
+-- Concurrency
+
+type Thread m = [m ()]
 
 main = do
   print subroutine''
