@@ -102,6 +102,9 @@ program = do
   bell
   done
 
+pretty :: (Show a, Show r) => Free (Toy a) r -> IO ()
+pretty = putStr . showProgram
+
 showProgram :: (Show a, Show r) => Free (Toy a) r -> String
 showProgram (Free (Output a x)) = "output " ++ show a ++ "\n" ++ showProgram x
 showProgram (Free (Bell x)) = "bell\n" ++ showProgram x
@@ -114,4 +117,7 @@ main = do
   print subroutine''
   print program''
   print program'
+  print " ------- "
   putStr $ showProgram program
+  print " ------- "
+  pretty program
