@@ -40,4 +40,9 @@ subroutine = Fix (Output 'A' (Throw IncompleteException))
 -- --     done
 -- -- }
 program = subroutine `catch` (\_ -> Fix (Bell (Fix Done)))
- --  :: FixE (Toy Char) e
+-- :: FixE (Toy Char) e
+  :: FixE (Toy Char) Int    -- Make e = Int otherwise print program complains about type e
+
+main = do
+  print subroutine
+  print program
