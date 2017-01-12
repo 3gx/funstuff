@@ -35,7 +35,7 @@ instance Functor (Toy b) where
 data IncompleteException = IncompleteException deriving (Show)
 
 -- throw IncompleteException
-subroutine = Fix (Output 'A' (Throw IncompleteException))
+subroutine'' = Fix (Output 'A' (Throw IncompleteException))
    :: FixE (Toy Char) IncompleteException
 
 -- try {subroutine}
@@ -43,11 +43,11 @@ subroutine = Fix (Output 'A' (Throw IncompleteException))
 -- --     bell
 -- --     done
 -- -- }
-program = subroutine `catch` (\_ -> Fix (Bell (Fix Done)))
+program'' = subroutine'' `catch` (\_ -> Fix (Bell (Fix Done)))
 -- :: FixE (Toy Char) e
   :: FixE (Toy Char) Int    -- Make e = Int otherwise print program complains about type e
 
-program' = catch'  (\_ -> Fix (Bell (Fix Done))) subroutine
+program' = catch'  (\_ -> Fix (Bell (Fix Done))) subroutine''
   :: FixE (Toy Char) Int  
 
 -- free monads, I
@@ -76,8 +76,42 @@ instance (Functor f) => Monad (Free f) where
   (Free x) >>= f = Free (fmap (>>= f) x)
   (Pure r) >>= f = f r
 
+output :: a -> Free (Toy a) ()
+--output x = Free (Output x (Pure ()))
+
+bell :: Free (Toy a) ()
+--bell = Free (Bell (Pure ()))
+
+done :: Free (Toy a) r
+--done = Free Done
+
+liftF :: (Functor f) => f r -> Free f r
+liftF command = Free (fmap Pure command)
+
+output x = liftF (Output x ())
+bell = liftF (Bell  ())
+done = liftF Done
+
+subroutine :: Free (Toy Char) ()
+subroutine = output 'A'
+
+-- program :: Free (Toy Char) r
+program :: Free (Toy Char) Int -- set r = Int to work in main
+program = do
+  subroutine
+  bell
+  done
+
+showProgram :: (Show a, Show r) => Free (Toy a) r -> String
+showProgram (Free (Output a x)) = "output " ++ show a ++ "\n" ++ showProgram x
+showProgram (Free (Bell x)) = "bell\n" ++ showProgram x
+showProgram (Free Done) = "done\n"
+showProgram (Pure r) = "return " ++ show r ++ "\n"
+
+
 
 main = do
-  print subroutine
-  print program
+  print subroutine''
+  print program''
   print program'
+  putStr $ showProgram program
