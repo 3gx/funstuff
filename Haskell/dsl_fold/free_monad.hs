@@ -50,6 +50,33 @@ program = subroutine `catch` (\_ -> Fix (Bell (Fix Done)))
 program' = catch'  (\_ -> Fix (Bell (Fix Done))) subroutine
   :: FixE (Toy Char) Int  
 
+-- free monads, I
+
+data Free f r = Free (f (Free f r)) | Pure r
+
+-- instance of Show for Free f
+instance (Show (f (Free f r)), Show r) => Show (Free f r) where
+  show (Free f) = "(Free " ++ show f ++ ")"
+  show (Pure r) = "(Pure " ++ show r ++ ")"
+
+-- instance of Functor for Free f
+instance Functor f => Functor (Free f) where
+  fmap f (Pure a) = Pure (f a)
+  fmap f (Free x) = Free (fmap (fmap f) x)
+
+-- instance of Applicative for Free f
+instance (Functor f) => Applicative (Free f) where
+  pure = Pure
+  Pure f <*> a = fmap f a
+  Free f <*> a = Free $ fmap (<*> a) f
+
+-- instance of Monad for Free f
+instance (Functor f) => Monad (Free f) where
+  return = Pure
+  (Free x) >>= f = Free (fmap (>>= f) x)
+  (Pure r) >>= f = f r
+
+
 main = do
   print subroutine
   print program
