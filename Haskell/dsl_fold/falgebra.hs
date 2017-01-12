@@ -1,3 +1,5 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 --import Data.Fix  as Fix
 {-data Expr = Const' Int
           | Add' Expr Expr
@@ -11,14 +13,10 @@ data ExprF a = Const Int
 type Expr = Fix ExprF
 
 newtype Fix f = In ( f (Fix f))
---newtype Fix' f = In { unFix' :: f (Fix' f)}
---newtype Fix' f = In' { unFix' :: f (Fix' f) }
 
---instance Show f => Show (Fix f) where
- -- show (In (f (Fix f))) = show f ++ " (Fix " ++ show f ++ ") "
+instance Show (f (Fix f)) => Show (Fix f) where
+  show (In i) = "(In $ " ++ show i ++ ")"
 
---instance Show (f (Fix f)) => Show (Fix f) where
-----  show x = "(Fix " + show (unFix' x) ++ ")"
 
 
 val :: Fix ExprF
@@ -30,7 +28,7 @@ testExpr = In $ (In $ (In $ Const 2) `Add`
 
 -- Altnrnatively use {-# LANGUAGE DeriveFunctor #-}, see falgebra_01.hs
 instance Functor ExprF where
-  fmap eval' (Const i) = Const i
+  fmap _ (Const i) = Const i
   fmap eval' (left `Add` right) = (eval' left) `Add` (eval' right)
   fmap eval' (left `Mul` right) = (eval' left) `Mul` (eval' right)
 
@@ -74,6 +72,7 @@ unFix (In x) = x
 
 cata :: Functor f => (f a -> a) -> Fix f -> a
 cata alg = alg. fmap (cata alg) . unFix
+cata' alg e= alg ( fmap (cata' alg) ( unFix e))
 
 eval :: Fix ExprF -> Int
 eval = alg . fmap eval . unFix
@@ -93,6 +92,8 @@ algSum (Cons e acc) = e + acc
 lst :: Fix (ListF Int)
 lst = In $ Cons 2 (In $ Cons 3 (In $ Cons 4 (In Nil)))
 
+expr = Add (In $ Const 2) (In $ Const 3)
+
 
 main = do
   print "123"
@@ -100,3 +101,5 @@ main = do
   print $ eval $ testExpr
   print $ cata pretty $ testExpr
   print $ cata algSum lst
+  print expr
+  print $ In expr
