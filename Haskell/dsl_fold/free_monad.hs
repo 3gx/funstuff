@@ -22,6 +22,10 @@ catch :: (Functor f) => FixE f e1 -> (e1 -> FixE f e2) -> FixE f e2
 catch (Fix x) f = Fix (fmap (flip catch f) x)
 catch (Throw e) f = f e
 
+catch' :: (Functor f) => (e1 -> FixE f e2) -> FixE f e1 -> FixE f e2
+catch' f (Fix x) = Fix (fmap (catch' f) x)
+catch' f (Throw e) = f e
+
 instance Functor (Toy b) where
   fmap f (Output x next) = Output x (f next)
   fmap f (Bell     next) = Bell     (f next)
@@ -43,6 +47,10 @@ program = subroutine `catch` (\_ -> Fix (Bell (Fix Done)))
 -- :: FixE (Toy Char) e
   :: FixE (Toy Char) Int    -- Make e = Int otherwise print program complains about type e
 
+program' = catch'  (\_ -> Fix (Bell (Fix Done))) subroutine
+  :: FixE (Toy Char) Int  
+
 main = do
   print subroutine
   print program
+  print program'
