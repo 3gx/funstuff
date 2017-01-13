@@ -176,3 +176,6 @@ main = do
   putStr $ showProgram program
   print " ------- "
   pretty program
+  runThread $ interleave thread1 thread2
+
+  
