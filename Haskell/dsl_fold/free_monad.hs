@@ -5,6 +5,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 import GHC.IO
+import Control.Monad
 
 
 data Toy b next = Output b next
@@ -125,6 +126,8 @@ interpret (Pure r) = throwIO (userError " Improper termination")
 -- Concurrency
 
 data Thread m r = Atomic (m (Thread m r)) | Return r
+atomic :: (Monad m) => m a -> Thread m a
+atomic m = Atomic $ liftM Return m
 
 main = do
   print subroutine''
