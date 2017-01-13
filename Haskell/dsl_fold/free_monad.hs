@@ -124,7 +124,7 @@ interpret (Pure r) = throwIO (userError " Improper termination")
 
 -- Concurrency
 
-type Thread m = [m ()]
+data Thread m r = Atomic (m (Thread m r)) | Return r
 
 main = do
   print subroutine''
