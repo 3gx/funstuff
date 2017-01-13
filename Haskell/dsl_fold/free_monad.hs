@@ -125,9 +125,48 @@ interpret (Pure r) = throwIO (userError " Improper termination")
 
 -- Concurrency
 
-data Thread m r = Atomic (m (Thread m r)) | Return r
+data Thread m r = Atomic (m (Thread m r)) | Return r 
+
+-- instance of Show for Thread m r
+instance (Show (m (Thread m r)), Show r) => Show (Thread m r) where
+  show (Atomic f) = "(Atomic " ++ show f ++ ")"
+  show (Return r) = "(Return " ++ show r ++ ")"
+
 atomic :: (Monad m) => m a -> Thread m a
 atomic m = Atomic $ liftM Return m
+
+instance (Monad m) => Functor (Thread m) where
+  fmap = liftM
+
+instance (Monad m) => Applicative (Thread m) where
+  pure = return
+  (<*>) = ap
+
+instance (Monad m) => Monad (Thread m) where
+  return = Return
+  (Atomic m) >>= f = Atomic (liftM (>>= f) m)
+  (Return r) >>= f = f r
+thread1 :: Thread IO()
+thread1 = do
+  atomic $ print 1
+  atomic $ print 2
+
+thread2 :: Thread IO()
+thread2 = do
+  str <- atomic $ getLine
+  atomic $ putStrLn str
+
+runThread :: (Monad m) => Thread m r -> m r
+runThread (Atomic m) = m >>= runThread
+runThread (Return r) = return r
+
+interleave :: (Monad m) => Thread m r -> Thread m r -> Thread m r
+interleave (Atomic m1) (Atomic m2) = do
+  next1 <- atomic m1
+  next2 <- atomic m2
+  interleave next1 next2
+interleave t1 (Return _) = t1
+interleave (Return _) t2 = t2
 
 main = do
   print subroutine''
