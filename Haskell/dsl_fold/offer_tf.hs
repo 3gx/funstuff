@@ -56,10 +56,12 @@ data Vect n a where
 
 
 -- requires TypeFamilies
+-- closed type family
 type family Plus x y where
   Plus Zero x = x
   Plus (Succ x) y = Succ (Plus x y)
 
+-- closed type family
 type family Min x y where
   Min (Succ x) (Succ y) = Succ (Min x y)
   Min _ _ = Zero
@@ -71,3 +73,14 @@ data Offer a p where
   Both             :: Offer a p -> Offer a q -> Offer a (Plus p q)
   Restrict         :: Vect (Succ n) a -> Offer a p -> Offer a (Min (Succ n) p)
 
+data TimeMachine = TimeMachine { model :: String } deriving Show
+data TimeMachineOps = Travel Integer | Park deriving Show
+
+data Book = Book { title :: String, author :: String, rating :: Integer } deriving Show
+data BookOps = Read | Highlight | WriteCritique deriving Show
+
+-- open type family
+type family Operation x
+
+type instance Operation TimeMachine = TimeMachineOps
+type instance Operation Book        = BookOps
