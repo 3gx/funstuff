@@ -74,7 +74,10 @@ data Offer a p where
   Restrict         :: Vect (Succ n) a -> Offer a p -> Offer a (Min (Succ n) p)
 
 data TimeMachine = TimeMachine { model :: String } deriving Show
-data TimeMachineOps = Travel Integer | Park deriving Show
+-- #if 0
+-- #define TMOP
+-- data TimeMachineOps = Travel Integer | Park deriving Show
+-- #endif
 
 data Book = Book { title :: String, author :: String, rating :: Integer } deriving Show
 data BookOps = Read | Highlight | WriteCritique deriving Show
@@ -87,14 +90,23 @@ type instance Operation TimeMachine = TimeMachineOps
 type instance Operation Book        = BookOps
 -}
 
-class Product p where
-  type Operation p :: *
+class Product p where 
+-- #ifdef TMOP
+-- type Operation p :: *
+-- #else
+  data Operation p
+-- #endif
+
   price :: p -> Float
   perform :: p -> Operation p -> String
   testOperation :: p -> Operation p
 
 instance Product TimeMachine where
-  type Operation TimeMachine = TimeMachineOps
+-- #ifdef TMOP
+--  type Operation TimeMachine = TimeMachineOps
+-- #else
+  data Operation TimeMachine = Travel Integer | Park
+-- #endif
   price _ = 1000.0
   perform (TimeMachine m) (Travel y) = "Traveling to " ++ show y ++ " with " ++ m
   perform (TimeMachine m) Park       = "Parking time machine " ++ m
@@ -105,3 +117,17 @@ totalAmount = foldr (+) 0.0 . map price
 
 performTest :: Product p => p -> String
 performTest p = perform p $ testOperation p
+
+performTestFromOther :: Product p => p -> p -> String
+-- otherwise, the infrred type is :
+-- :t performTestFromOther
+--   performTestFromOther
+--     :: (Operation p ~ Operation p1, Product p1, Product p) =>
+--          p1 -> p -> String
+--
+performTestFromOther p q = perform p $ testOperation q
+
+main = do 
+  print $ perform (TimeMachine "Tm1") (Travel 100)
+  print $ performTestFromOther  (TimeMachine "TM2") (TimeMachine "TM1")
+
