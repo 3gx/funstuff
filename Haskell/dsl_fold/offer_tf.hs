@@ -60,8 +60,14 @@ type family Plus x y where
   Plus Zero x = x
   Plus (Succ x) y = Succ (Plus x y)
 
+type family Min x y where
+  Min (Succ x) (Succ y) = Succ (Min x y)
+  Min _ _ = Zero
+
 data Offer a p where
   Present          :: a -> Offer a (Succ Zero)
   PercentDiscount  :: Float -> Offer a Zero
   AbsoluteDiscount :: Float -> Offer a Zero
+  Both             :: Offer a p -> Offer a q -> Offer a (Plus p q)
+  Restrict         :: Vect (Succ n) a -> Offer a p -> Offer a (Min (Succ n) p)
 
