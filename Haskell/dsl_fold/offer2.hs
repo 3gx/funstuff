@@ -2,7 +2,10 @@
              MultiParamTypeClasses, 
              FunctionalDependencies,
              FlexibleInstances,
-             UndecidableInstances #-}
+             UndecidableInstances,
+             FlexibleContexts #-}
+
+{-
 data Offer a = Present a
              | PercentDiscount Float
              | AbsoluteDiscount Float 
@@ -14,6 +17,7 @@ data Offer a = Present a
              | BetterOf (Offer a) (Offer a)
 --             | If (Expr a) (Offer a) (Offer a)
            deriving (Show)
+-}
 
 data Expr a r where
   AmountOf            :: a -> Expr a Integer
@@ -31,7 +35,8 @@ data Expr a r where
   (:||:)              :: Expr a Bool -> Expr a Bool -> Expr a Bool
   Not                 :: Expr a Bool -> Expr a Bool 
  
-  
+
+{-  
 noOffer :: Offer a
 noOffer = AbsoluteDiscount 0
 
@@ -51,6 +56,7 @@ allOf :: [a] -> Offer a
 allOf os = Restrict os  noOffer
 
 v1 = period 3 5 (Both (Both (Present "ballon") (Present "choco muffin")) (PercentDiscount 10.0))
+-}
 
 -- oops, illegal expression, but it still type checks
 {- doesn't type check with GADTs
@@ -112,5 +118,22 @@ data Vect n a where
 
 class Plus x y z | x y -> z
 
+-- Uses FlexibleInstances
 instance Plus Zero x x
+-- Uses Undecidable Instances
 instance Plus x y z => Plus (Succ x) y (Succ z)
+
+class Min x y z | x y -> z
+
+instance Min Zero y  Zero
+instance Min (Succ x) Zero Zero
+instance Min x y z => Min (Succ x) (Succ y) (Succ z)  
+
+data Offer a p where
+  Present          :: a -> Offer a (Succ Zero)
+  PercentDiscount  :: Float -> Offer a Zero
+  AbsoluteDiscount :: Float -> Offer a Zero
+  Both             :: Plus p q r => Offer a p -> Offer a q -> Offer a r 
+  -- Uses FlexibleContexts
+  Restrict         :: Min (Succ n) p r => Vect (Succ n) a -> Offer a p -> Offer a r
+
