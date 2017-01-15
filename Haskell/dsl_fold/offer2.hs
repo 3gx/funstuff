@@ -84,6 +84,7 @@ changePurchaseFinalPrice :: User AllowEverything -> Purchase -> Float -> Purchas
 changePurchaseFinalPrice = ... 
 -}
 
+-- requires FunctionalDependencies
 class Product p op  | p->op where
   price :: p -> Float
   perform :: p -> op -> String

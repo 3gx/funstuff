@@ -1,8 +1,8 @@
 {-# LANGUAGE GADTs,  
              MultiParamTypeClasses, 
-             FunctionalDependencies,
-             FlexibleInstances,
-             UndecidableInstances #-}
+             TypeFamilies
+#-}
+
 data Offer a = Present a
              | PercentDiscount Float
              | AbsoluteDiscount Float 
@@ -78,31 +78,6 @@ changePurchaseFinalPrice :: User AllowEverything -> Purchase -> Float -> Purchas
 changePurchaseFinalPrice = ... 
 -}
 
-class Product p op  | p->op where
-  price :: p -> Float
-  perform :: p -> op -> String
-  testOperation :: p -> op
-
-class Store store m where
-  new :: a -> m (store a)
-  get :: store a -> m a
-  put :: store a -> a -> m ()
-
-data TimeMachine = TimeMachine { model :: String } deriving Show
-data TimeMachineOps = Travel Integer | Park deriving Show
-
-instance Product TimeMachine TimeMachineOps where
-  price _ = 1000.0
-  perform (TimeMachine m) (Travel y) = "Traveling to " ++ show y ++ " with " ++ m
-  perform (TimeMachine m) Park       = "Parking time machine " ++ m
-  testOperation _                    = Travel 0
-
-totalAmount :: Product p op => [p] -> Float
-totalAmount = foldr (+) 0.0 . map price
-
-performTest :: Product p op => p -> String
-performTest p = perform p $ testOperation p
-
 data Zero
 data Succ n
 
@@ -110,7 +85,9 @@ data Vect n a where
   VNil :: Vect Zero a
   VCons :: a -> Vect n a -> Vect (Succ n) a
 
-class Plus x y z | x y -> z
 
-instance Plus Zero x x
-instance Plus x y z => Plus (Succ x) y (Succ z)
+-- requires TypeFamilies
+type family Plus x y where
+  Plus Zero x = x
+  Plus (Succ x) y = Succ (Plus x y)
+
