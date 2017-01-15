@@ -32,3 +32,14 @@ v = Until 30 $ BetterOf (AbsoluteDiscount 10.0)
                           (Both (Present "ballon")
                           (If (TotalPrice :>: IVal 100) (PercentDiscount 5.0)
                                                          noOffer)) 
+
+period :: Integer -> Integer -> Offer a -> Offer a
+period f d o = From d (Until (f+d) o)
+
+
+allOf :: [a] -> Offer a
+allOf os = Restrict os  noOffer
+
+v1 = period 3 5 (Both (Both (Present "ballon") (Present "choco muffin")) (PercentDiscount 10.0))
+
+
