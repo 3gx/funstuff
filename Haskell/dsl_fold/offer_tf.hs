@@ -55,6 +55,7 @@ data Vect n a where
   VCons :: a -> Vect n a -> Vect (Succ n) a
 
 
+{-
 -- requires TypeFamilies
 -- closed type family
 type family Plus x y where
@@ -72,6 +73,7 @@ data Offer a p where
   AbsoluteDiscount :: Float -> Offer a Zero
   Both             :: Offer a p -> Offer a q -> Offer a (Plus p q)
   Restrict         :: Vect (Succ n) a -> Offer a p -> Offer a (Min (Succ n) p)
+-}
 
 data TimeMachine = TimeMachine { model :: String } deriving Show
 -- #if 0
