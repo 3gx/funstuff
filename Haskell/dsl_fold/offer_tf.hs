@@ -79,8 +79,29 @@ data TimeMachineOps = Travel Integer | Park deriving Show
 data Book = Book { title :: String, author :: String, rating :: Integer } deriving Show
 data BookOps = Read | Highlight | WriteCritique deriving Show
 
+{-
 -- open type family
 type family Operation x
 
 type instance Operation TimeMachine = TimeMachineOps
 type instance Operation Book        = BookOps
+-}
+
+class Product p where
+  type Operation p :: *
+  price :: p -> Float
+  perform :: p -> Operation p -> String
+  testOperation :: p -> Operation p
+
+instance Product TimeMachine where
+  type Operation TimeMachine = TimeMachineOps
+  price _ = 1000.0
+  perform (TimeMachine m) (Travel y) = "Traveling to " ++ show y ++ " with " ++ m
+  perform (TimeMachine m) Park       = "Parking time machine " ++ m
+  testOperation _                    = Travel 0
+
+totalAmount :: Product p => [p] -> Float
+totalAmount = foldr (+) 0.0 . map price
+
+performTest :: Product p => p -> String
+performTest p = perform p $ testOperation p
