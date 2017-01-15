@@ -42,4 +42,9 @@ allOf os = Restrict os  noOffer
 
 v1 = period 3 5 (Both (Both (Present "ballon") (Present "choco muffin")) (PercentDiscount 10.0))
 
+-- oops, illegal expression, but it still type checks
+incorrectExpression :: Expr Char
+incorrectExpression = TotalPrice :||: (TotalNumberProducts :<: PriceOf 'a')
+
+data Expr1 a r where
 
