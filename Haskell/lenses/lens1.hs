@@ -1,5 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TemplateHaskell #-}
 -- https://skillsmatter.com/skillscasts/4251-lenses-compositional-data-access-and-manipulation#video
+
+import Control.Lens.TH
 
 
 data LensR s a = L { viewR :: s -> a, setR :: a -> s -> s }
@@ -142,4 +145,17 @@ fred = P { _name = "Fred", _salary = 100 }
 -- ============================
 
 
+-- composeL :: Lens' s1 s2 -> Lens' s2 a -> Lens' s1 a
+-- type Lens' s a = forall f. Functor f => (a -> f a) -> (s -> f s)
+--
+-- so if 
+--    ln1 :: (s2 -> f2 s2) -> (s1 -> f1 s1)
+--    ln2 :: (a -> f a) -> (s2 -> f s2)
+-- then
+--    ln1 . ln2 :: (a -> f a) -> (s1 -> f1 s2) 
+--   *> cute <*
 
+
+data Person1 = P1 { _name1 :: String, _salary1 :: Int } deriving Show
+fred1 = P1 { _name1 = "Fred", _salary1 = 100 }
+$(makeLenses ''Person1)
