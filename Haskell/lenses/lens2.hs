@@ -260,5 +260,10 @@ fredA = A "72 Humberstone Rd" "Cambridge" "CB4 1JD"
       * Type classes
       * Higher rank types
       * Higher kinded type variables
+
+  QA: Records in Haskell, same field name in multiple records
+  type class Has f, which check if record has a filed f
 -}
+
+
 
