@@ -1,4 +1,6 @@
 {-# LANGUAGE GADTs #-}
+-- Calculating exception machine: http://www.cs.nott.ac.uk/~pszgmh/bib.html#machine
+
 -- Syntax
 
 data Expr = Val Int 
@@ -9,16 +11,26 @@ data Expr = Val Int
 
 -- Semantics:
 
-eval :: Expr -> Int
-eval (Val n) = n
-eval (Add x y) = eval x + eval y
+eval :: Expr -> Maybe Int
+eval (Val n)     = Just n
+eval (Throw)     = Nothing
+eval (Add x y)   = eval x .+. eval y
+eval (Catch x y) = eval x .+  eval y
+
+(.+.) :: Maybe Int -> Maybe Int -> Maybe Int
+Just n .+. Just m = Just (m+n)
+_ .+. _ = Nothing
+
+(.+) :: Maybe Int -> Maybe Int -> Maybe Int
+Just n  .+ _ = Just n
+Nothing .+ y = y
 
 -- Expression
 
-e = Add (Val 3) (Val 5)
+e = Catch (Add (Val 100) (Add Throw (Val 42))) (Add (Val 3) (Val 5))
 
 -- > e
--- Add (Val 3) (Val 5)
+-- Catch (Add (Val 100) (Add Throw (Val 42))) (Add (Val 3) (Val 5))
 -- > eval e
 -- 8
 
@@ -148,24 +160,35 @@ eval2 e = eval'' e C1
 
 -- Abstract machine
 
--- Control stack type
+-- Control stack 
 data Contr = STOP
            | EVAL Expr Contr
            | ADD  Int  Contr
+           | HAND Expr Contr
 
-run :: Expr -> Int
+run :: Expr -> Maybe Int
 run e = evalr e STOP
 
 -- used to be called eval''
-evalr :: Expr -> Contr -> Int
-evalr (Val n) c = exec c n
-evalr (Add x y) c = evalr x (EVAL y c)
+evalr :: Expr -> Contr -> Maybe Int
+evalr (Val n)     c = exec c n
+evalr (Throw)     c = unwind c
+evalr (Add x y)   c = evalr x (EVAL y c)
+evalr (Catch x y) c = evalr x (HAND y c)
 
 -- used to be called apply
-exec :: Contr -> Int -> Int
-exec STOP n = n
+exec :: Contr -> Int -> Maybe Int
+exec STOP n     = Just n
 exec (EVAL y c) n = evalr y (ADD n c)
 exec (ADD  n c) m = exec c (n+m)
+exec (HAND _ c) n = exec c n 
+
+-- Unwinding the control stack
+unwind :: Contr -> Maybe Int
+unwind STOP = Nothing
+unwind (EVAL _ c) = unwind c
+unwind (ADD  _ c) = unwind c
+unwind (HAND y c) = evalr y c
 
 {-
    run (Add (Val 1) (Val 2)) 

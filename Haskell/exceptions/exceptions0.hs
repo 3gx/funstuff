@@ -1,4 +1,7 @@
 {-# LANGUAGE GADTs #-}
+
+-- Calculating exception machine: http://www.cs.nott.ac.uk/~pszgmh/bib.html#machine
+
 -- Syntax
 
 data Expr = Val Int 
