@@ -76,6 +76,10 @@ data Expr
       | EBool Bool
       | EAsset Asset
       | EDate Date  
+      -- deep embedding of lists
+  --  | EFoldl1 (Expr -> Expr -> Expr) Expr
+  --  | EMap (Expr -> Expr Expr
+  --  | EList [Expr]
   deriving Show
 
 
@@ -118,8 +122,13 @@ instance Floating EDouble where
   exp = unOp Exp
   log = unOp Log
 
+{-
 observe :: E Asset -> E Date -> EDouble
 observe = binOp Observe
+-}
+observe :: Asset -> Date -> Double
+observe (Asset f) d = f d
+
 
 {-
 infix 4 <
@@ -155,5 +164,70 @@ instance Value Asset where
   lift = E . EAsset
   down (E (EAsset x)) = x
 
+-- Deep
+--   type List a = E [a]
+-- Shallow
+--   type List a = [a]
+
+-- list exist at "compile time"  (when haskell runs)
+--   bestOf :: [E Asset] -> E Date -> E Date -> EDouble
+-- list exist at "compile time"
+--  bestOf :: E [Asset] -> E Date -> E Date -> EDouble
+
+eval :: Expr -> Expr
+eval (Add e1 e2) = case (eval e1, eval e2) of
+                    (EDouble x1, EDouble x2) -> EDouble (x1 + x2) 
+
+eval (Sub e1 e2) = case (eval e1, eval e2) of
+                    (EDouble x1, EDouble x2) -> EDouble (x1 - x2) 
+
+eval (Mul e1 e2) = case (eval e1, eval e2) of
+                    (EDouble x1, EDouble x2) -> EDouble (x1 * x2) 
+
+eval (Div e1 e2) = case (eval e1, eval e2) of
+                    (EDouble x1, EDouble x2) -> EDouble (x1 / x2) 
+
+eval (Less e1 e2) = case (eval e1, eval e2) of
+                    (EDouble x1, EDouble x2) -> EBool (x1 < x2) 
+eval (Log e) = case eval e of EDouble x -> EDouble (log x)
+eval (Exp e) = case eval e of EDouble x -> EDouble (exp x)
+
+eval (Observe e1 e2) = case (eval e1 , eval e2) of
+                          (EAsset (Asset f), EDate d) -> EDouble (f d)
+
+eval e = e 
+
+evalE :: Value a => E a -> a
+evalE (E e) = down $ E $ eval e
+expr = 1+2::EDouble
+
+-- > evalE expr
+-- 3.0
+
+-- Test
+d1,d2 :: Date
+d1 = Date 100
+d2 = Date 200
+
+a1, a2 :: Asset
+a1 = Asset $ const 5
+a2 = Asset $ \(Date d) -> 0.1 * fromIntegral (d-10)
+  
+type List a = [a]
+
+-- Neritic embeding (?!?)
+
+bestOf :: List (E Asset) -> E Date -> E Date -> EDouble
+bestOf assets startDate endDate =
+   lift $ (foldl1 max $ map (\x -> perf (evalE startDate)  (evalE endDate) (evalE x)) assets)
+
+perf :: Date -> Date -> Asset -> Double
+perf t1 t2 asset = observe asset t2 / observe asset t1 - 1
+
+t :: Double
+t = evalE $ bestOf [lift a1, lift a2] (lift d1) (lift d2)
+
+-- > t
+-- 1.1111111111111112
 
 
