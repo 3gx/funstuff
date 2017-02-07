@@ -3,8 +3,8 @@
 
 --import Prelude hiding ((<))
 
-import qualified LLVM.Core as LLVMCore
-import qualified LLVM.ExecutionEngine as LLVMExec
+-- import qualified LLVM.Core as LLVMCore
+-- import qualified LLVM.ExecutionEngine as LLVMExec
 
 
 {- 
