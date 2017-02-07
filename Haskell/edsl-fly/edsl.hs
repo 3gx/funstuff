@@ -3,8 +3,8 @@
 
 --import Prelude hiding ((<))
 
---import LLVM.Core
--- import LLVM.General.ExecutionEngine
+import qualified LLVM.Core as LLVMCore
+import qualified LLVM.ExecutionEngine as LLVMExec
 
 
 {- 
@@ -261,3 +261,5 @@ main = do
       fcn = unsafePurify fcnIO
   print $ fcn 2 3   
 -}
+
+main = print 42

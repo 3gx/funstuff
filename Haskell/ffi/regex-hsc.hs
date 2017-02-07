@@ -1,4 +1,6 @@
+{-# LINE 1 "regex-hsc.hsc" #-}
 {-# LANGUAGE CPP #-}
+{-# LINE 2 "regex-hsc.hsc" #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
 module Regex where
@@ -6,4 +8,5 @@ module Regex where
   import Foreign
   import Foreign.C.Types
 
-#include <pcre.h>
+
+{-# LINE 10 "regex-hsc.hsc" #-}
