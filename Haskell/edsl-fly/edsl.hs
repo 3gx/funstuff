@@ -4,7 +4,7 @@
 --import Prelude hiding ((<))
 
 --import LLVM.Core
-import LLVM.General.ExecutionEngine
+-- import LLVM.General.ExecutionEngine
 
 
 {- 
@@ -246,6 +246,7 @@ t = evalE $ bestOf [lift a1, lift a2] (lift d1) (lift d2)
 
 -- \x y -> (x+x)*y
 
+{-
 mkFcn :: CodeGenModule (Function (Double -> Double -> IO Double))
 mkFcn = createFunction InternalLinkage $ \x y -> do
     x2 <- add x x
@@ -259,3 +260,4 @@ main = do
   let fcn :: Double -> Double -> Double
       fcn = unsafePurify fcnIO
   print $ fcn 2 3   
+-}
