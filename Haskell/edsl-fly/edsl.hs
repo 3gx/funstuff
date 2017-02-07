@@ -3,6 +3,10 @@
 
 --import Prelude hiding ((<))
 
+--import LLVM.Core
+import LLVM.General.ExecutionEngine
+
+
 {- 
   data Date   -- type of dates
   data Asset  -- type of asserts
@@ -230,4 +234,28 @@ t = evalE $ bestOf [lift a1, lift a2] (lift d1) (lift d2)
 -- > t
 -- 1.1111111111111112
 
+-- LLVM [35m in video]
 
+-- Use LLVM JIT
+--    * Build instruction sequence
+--    * Call JIT
+--    * Returns a pointer to the code
+
+-- LLVM follows C calling convention
+-- There is GCH LLVM backend
+
+-- \x y -> (x+x)*y
+
+mkFcn :: CodeGenModule (Function (Double -> Double -> IO Double))
+mkFcn = createFunction InternalLinkage $ \x y -> do
+    x2 <- add x x
+    tmp <- mul x2 y
+    ret tmp
+
+main = IO ()
+main = do
+  initializeNativeTarget
+  fcnIO <- simpleFunction mkFcn
+  let fcn :: Double -> Double -> Double
+      fcn = unsafePurify fcnIO
+  print $ fcn 2 3   
