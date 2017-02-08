@@ -1,4 +1,6 @@
 import Data.Char (chr,toUpper)
+import Data.IORef
+import Data.Array.IO
 
 -- simple sequences execution examples
 
@@ -56,9 +58,37 @@ touppers (x:xs) | null xs = [toUpper x] | otherwise = toUpper x :touppers xs
 
 touppersm = liftm touppers
 
+while :: IO Bool -> IO ()
+while mval = do
+  val <- mval
+  if (val) then  do
+    c <- getChar
+    if (c == ' ') then while (return False) else while (return True)
+  else do
+    return ()
+
+-- mutable data
+
 main = do  
+     --- Mutable data
+      arr <- newArray (1,10) 37 :: IO (IOArray Int Int)
+      a <- readArray arr 1
+      writeArray arr 1 64
+      b <- readArray arr 1
+      print (a,b)
+       ---------
+      varA <- newIORef 0
+      a0 <- readIORef varA
+      writeIORef varA 1
+      a1 <- readIORef varA
+      print (a0,a1) 
+     ---
       str <- (touppersm.return) "wow!"
       print str
+     ---
+      let get2chars = getChar >> getChar
+      putStr "Press two keys"
+      get2chars
       a <- ask "Whats1?"
       b <- ask "Whats2?"
-      return ();
+      return ()
