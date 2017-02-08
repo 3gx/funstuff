@@ -133,13 +133,6 @@ rand48 count | count == 1 = getNextRand48
 getRand :: Seed -> Int -> Double
 getRand  seed count = evalState (rand48 count) seed
 
-{-
-theSeed :: IORef Seed
-theSeedd = do
-  s <- newIORef seed
-  return s
--}
-
 theSeed :: IORef Seed
 theSeed = unsafePerformIO $  do
   newIORef 0
