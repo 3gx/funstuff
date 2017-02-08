@@ -1,5 +1,8 @@
 --{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import System.IO.Unsafe (unsafePerformIO)
+
 newtype State s a = State { runState :: s -> (a,s) };
 
 instance Functor (State s) where
@@ -130,6 +133,47 @@ rand48 count | count == 1 = getNextRand48
 getRand :: Seed -> Int -> Double
 getRand  seed count = evalState (rand48 count) seed
 
+theSeed :: IORef Seed
+theSeed = unsafePerformIO $  do
+  newIORef 0
+
+getSeed :: IO Seed
+getSeed = readIORef theSeed
+
+setSeed :: Seed -> IO ()
+setSeed seed = writeIORef theSeed seed
+
+drand48 :: IO Double> drand48
+4.163100159461308e-2
+
+drand48 = do
+  seed <- getSeed
+  let (result,seed') = runState getNextRand48 seed
+  setSeed seed'
+  return result
+
+-- > drand48
+-- 0.0
+-- > drand48
+-- 3.907985046680551e-14
+-- > setSeed 12345
+-- > drand48
+-- 4.3858250364792184e-11
+-- > drand48
+-- 0.1058815689160042
+-- > drand48
+-- 0.7982597062146901
+-- > drand48
+-- 1.6058956758151055e-2
+-- > drand48
+-- 0.664036659792874
+--
+--
+
+--readSeed :: IO ()
+--readSeed = do
+--  seed <- readIORef s
+--  return ()
 
 {-
  
