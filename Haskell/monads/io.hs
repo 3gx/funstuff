@@ -1,3 +1,6 @@
+
+-- See: https://wiki.haskell.org/IO_inside
+
 import Data.Char (chr,toUpper)
 import Data.IORef
 import Data.Array.IO

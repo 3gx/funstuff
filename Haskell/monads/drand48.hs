@@ -34,15 +34,15 @@ gets f = get >>= \x -> return (f x);
 -- gets f = do { x<-get; return (f x); }
 
 {-
-     get >>= \x -> return (f x)
+    get >>= \x -> return (f x)
 
- ==  State (\s -> (s,s)) >>= (\x -> return (f x))
+ == State (\s -> (s,s)) >>= (\x -> return (f x))
  
-==  State (\s -> (s,s)) >>= (\x -> State (\s -> (f x, s)))
+ == State (\s -> (s,s)) >>= (\x -> State (\s -> (f x, s)))
 
- ==  (>>=) State (\s -> (s,s)) (\x -> (State (\s -> (f x,s))) )
+ == (>>=) State (\s -> (s,s)) (\x -> (State (\s -> (f x,s))) )
 
- ==  State (\s -> let (x,s') = (\s -> (s,s)) s
+ == State (\s -> let (x,s') = (\s -> (s,s)) s
                   in runState (\x -> (State (\s -> (f x,s)))) x  s')
 
  == State (\s -> let (x,s') = (s,s)  
@@ -63,6 +63,8 @@ evalState act = fst . runState act
 
 execState :: State s a -> s -> s
 execState act = snd . runState act
+
+-- See: https://bartoszmilewski.com/2014/01/14/functors-are-containers/
 
 data State' s a = State' (s->a) ( s->s)
 runState' (State' f tr) s = (f s, tr s)
@@ -225,7 +227,8 @@ drand48 = do
 -}
 
 
----------
+---------  Experients with state moand 
+-- see: https://wiki.haskell.org/State_Monad
 
 type GameValue = Int
 type GameState = (Bool, Int)

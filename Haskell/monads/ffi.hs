@@ -1,3 +1,6 @@
+-- See:
+-- https://wiki.haskell.org/IO_inside#Interfacing_with_C.2FC.2B.2B_and_foreign_libraries_.28under_development.29
+
 main = do print "Hello from main"
           c_function
 
