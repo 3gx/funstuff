@@ -108,8 +108,8 @@ bindState :: State s a -> (a -> State s b) -> State s b
 bindState m k = State $ \s -> let (a, s') = runState m s
                               in runState (k a) s'
 
-----------
---
+---------- drand48 ()
+
 type Seed = Int
 drand48val :: Seed -> Double
 drand48val s = realToFrac(s `mod` 281474976710656)*(1.0/281474976710656.0);
@@ -122,10 +122,9 @@ type DRand48 = State Seed Double
 getNextRand48 :: DRand48
 getNextRand48 = State (\s -> (drand48val(s), nextSeed(s)))
 
-
 rand48 :: Int -> DRand48
-rand48 count | count == 1 = do { getNextRand48; } 
-             |otherwise  = do { getNextRand48; rand48 (count-1); }
+rand48 count | count == 1 = getNextRand48
+             | otherwise =  getNextRand48 >> rand48 (count-1)
   
  
 getRand :: Seed -> Int -> Double
