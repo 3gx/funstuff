@@ -133,6 +133,9 @@ rand48 count | count == 1 = getNextRand48
 getRand :: Seed -> Int -> Double
 getRand  seed count = evalState (rand48 count) seed
 
+-- dirty hack. ghc will only call this funciton once, and momoize the result
+--             because we say it is a pure funciton by unwrapping result form
+--             the inside of IO Monad. Dirty, dirty
 theSeed :: IORef Seed
 theSeed = unsafePerformIO $  do
   newIORef 0
