@@ -133,6 +133,13 @@ rand48 count | count == 1 = getNextRand48
 getRand :: Seed -> Int -> Double
 getRand  seed count = evalState (rand48 count) seed
 
+{-
+theSeed :: IORef Seed
+theSeedd = do
+  s <- newIORef seed
+  return s
+-}
+
 theSeed :: IORef Seed
 theSeed = unsafePerformIO $  do
   newIORef 0
@@ -143,9 +150,7 @@ getSeed = readIORef theSeed
 setSeed :: Seed -> IO ()
 setSeed seed = writeIORef theSeed seed
 
-drand48 :: IO Double> drand48
-4.163100159461308e-2
-
+drand48 :: IO Double
 drand48 = do
   seed <- getSeed
   let (result,seed') = runState getNextRand48 seed
@@ -156,6 +161,8 @@ drand48 = do
 -- 0.0
 -- > drand48
 -- 3.907985046680551e-14
+-- > drand48
+-- 9.853946746503084e-4
 -- > setSeed 12345
 -- > drand48
 -- 4.3858250364792184e-11
