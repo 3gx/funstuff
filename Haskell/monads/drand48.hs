@@ -10,6 +10,11 @@ bindState m k = State $ \s -> let (a, s') = runState m s
 updateState :: Int -> Int
 updateState stat = stat * 0x5DEECE66D + 0xB;
 
+drand48 :: Int -> Double
+drand48 state = realToFrac(state `mod` 281474976710656)*(1.0/281474976710656.0);
+
+
+
 {-
  
   struct Rand48

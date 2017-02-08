@@ -27,3 +27,7 @@
 *.out
 *.app
 *.swp
+
+*.hi
+*.cabal-sandbox
+cabal.sandbox*
