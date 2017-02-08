@@ -150,6 +150,18 @@ getSeed = readIORef theSeed
 setSeed :: Seed -> IO ()
 setSeed seed = writeIORef theSeed seed
 
+{-
+theSeed :: IO (IORef Seed)
+theSeed = do
+  newIORef 0
+
+getSeed :: IO Seed
+getSeed = do { theseed <- theSeed; readIORef theseed; }
+
+setSeed :: Seed -> IO ()
+setSeed seed = do {theseed <- theSeed; writeIORef theseed seed;}
+-}
+
 drand48 :: IO Double
 drand48 = do
   seed <- getSeed
