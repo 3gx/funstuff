@@ -1,3 +1,5 @@
+import System.Random
+
 type Stack = [Int]
 
 pop' :: Stack -> (Int, Stack)
@@ -84,6 +86,48 @@ stackyStack = do
 -- > runState stackyStack [1,2,4]
 -- ((),[9,2,1])
 
+
+randomSt :: (RandomGen g, Random a) => State g a  
+randomSt = State random  
+
+threeCoins :: State StdGen (Bool,Bool,Bool)  
+threeCoins = do  
+    a <- randomSt  
+    b <- randomSt  
+    c <- randomSt  
+    return (a,b,c) 
+
+-- > runState threeCoins (mkStdGen 33)  
+-- ((True,False,True),680029187 2103410263u
+-- > runState threeCoins (snd $ runState threeCoins (mkStdGen 33)  )
+-- ((True,True,True),1470354523 1780294415)
+
+type Seed = Int
+drand48val :: Seed -> Double
+drand48val s = realToFrac(s `mod` 281474976710656)*(1.0/281474976710656.0);
+
+nextSeed :: Seed -> Seed
+nextSeed s = s * 0x5DEECE66D + 0xB;
+
+type DRand48 a = State Seed a
+
+getNextRand48 :: DRand48 Double
+getNextRand48 = State (\s -> (drand48val(s), nextSeed(s)))
+
+tf :: Double -> Bool
+tf x | x > 0.5 = True| otherwise = False
+
+threeCoins' :: DRand48 (Bool,Bool,Bool)
+threeCoins' = do 
+  a <- getNextRand48
+  b <- getNextRand48
+  c <- getNextRand48
+  return (tf a, tf b, tf c)
+
+-- > runState threeCoins' (-5753696520228384159)
+-- ((True,False,False),-6755292999987930158)
+-- > runState threeCoins' (5753696520228384159)
+-- ((False,True,True),-6913108432911116632)
 
 
 
