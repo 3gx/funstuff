@@ -47,4 +47,15 @@ addStuff1 = (*2) >>= \a -> (+10) >>= \b -> return (a+b)
 -- 19
 -
 
---
+{-
+ -   h >>= f = \w -> f (h w) w
+ -
+ -   f = (\a -> (+10) >>= \b -> return (a+b))
+ -
+ -   f (h w) = (+10) >>= \b -> return ((h w) +b)
+ -
+ -   (\w' -> (\b->return ((h w) + b)) (h' w') ) w
+ -   (\w' -> return ((h w) + (h' w')) w' ) w
+ -    return ((h w) + (h' w)) w
+ -   ' 
+ -}
