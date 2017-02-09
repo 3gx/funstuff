@@ -66,6 +66,24 @@ stackStuff = do
 -- ((),[8,3,5,8,2,1])
 
 
+get :: State Stack Stack
+get = State $ \s -> (s,s)
+
+put :: Stack -> State Stack ()
+put s = State $ \_ -> ((),s)
+
+stackyStack :: State Stack ()
+stackyStack = do
+  stackNow <- get
+  if stackNow == [1,2,3]
+    then put [8,3,1]
+    else put [9,2,1]
+
+-- > runState stackyStack [1,2,3]
+-- ((),[8,3,1])
+-- > runState stackyStack [1,2,4]
+-- ((),[9,2,1])
+
 
 
 
