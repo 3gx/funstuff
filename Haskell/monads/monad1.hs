@@ -23,7 +23,7 @@ addStuff1 = (*2) >>= \a -> (+10) >>= \b -> return (a+b)
 
  == \w -> (w*2 + (w+10))
 
- -}
+-}
 
 {-
    a <- (*2)
@@ -39,23 +39,23 @@ addStuff1 = (*2) >>= \a -> (+10) >>= \b -> return (a+b)
 
 == \w -> 1 + 2*w
 
- -}
+-}
 
 -- > addStuff 3
 -- 19
 -- > addStuff1 3
 -- 19
--
+
 
 {-
- -   h >>= f = \w -> f (h w) w
- -
- -   f = (\a -> (+10) >>= \b -> return (a+b))
- -
- -   f (h w) = (+10) >>= \b -> return ((h w) +b)
- -
- -   (\w' -> (\b->return ((h w) + b)) (h' w') ) w
- -   (\w' -> return ((h w) + (h' w')) w' ) w
- -    return ((h w) + (h' w)) w
- -   ' 
- -}
+   h >>= f = \w -> f (h w) w
+
+   f = (\a -> (+10) >>= \b -> return (a+b))
+
+   f (h w) = (+10) >>= \b -> return ((h w) +b)
+ 
+   (\w' -> (\b->return ((h w) + b)) (h' w') ) w
+   (\w' -> return ((h w) + (h' w')) w' ) w
+   return ((h w) + (h' w)) w  = (h w) + (h' w)
+
+-}
