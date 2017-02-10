@@ -24,7 +24,7 @@ item = P (\inp -> case inp of []     -> []
 -- > parse item "abc"
 -- [('a',"bc")]
 
--- Sequencing parsers
+-- 13.4 Sequencing parsers
 
 instance Functor Parser where
   fmap f (P p) = P (\inp -> case p inp of [] -> []
@@ -74,5 +74,27 @@ mthree = do
 -- [(('a','c'),"")]
 -- > parse mthree "ab"
 -- []
+
+-- 13.5 Making choices
+
+instance Alternative Parser where
+  empty = P (\inp -> [])
+  (P p) <|> (P q) = P (\inp -> case p inp of  [] -> q inp
+                                              [(v,out)] -> [(v,out)])
+
+-- > parse empty "abc"
+-- []
+-- > parse (item  <|> return 'd') "abc"
+-- [('a',"bc")]
+-- > parse (empty  <|> return 'd') "abc"
+-- [('d',"abc")]
+-- > parse (three <|> return ('d','c')) "abcdef"
+-- [(('a','c'),"def")]
+-- > parse (three <|> return ('d','c')) "ab"
+-- [(('d','c'),"ab")]
+
+-- 13.6 Derived primitives
+
+
 
 
