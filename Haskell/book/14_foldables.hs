@@ -88,3 +88,34 @@ average ns = sum ns `div` length ns
 
 -- 14.3 Traversables
 
+traverse' :: (a -> Maybe b) -> [a] -> Maybe [b]
+traverse' g [] = pure []
+traverse' g (x:xs) = pure (:) <*> g x <*> traverse' g xs
+
+dec :: (Num a,Ord a) => a -> Maybe a
+dec n = if n > 0 then Just (n-1) else Nothing
+
+-- traverse' dec [1,2,3]
+-- Just [0,1,2]
+-- > traverse' dec [0,1,2]
+-- Nothing
+
+instance Functor Tree where
+  fmap f (Leaf x) = Leaf (f x)
+  fmap f (Node l r) = Node (fmap f l) (fmap f r)
+  
+instance Traversable Tree where
+  traverse g (Leaf x) = pure Leaf <*> g x
+  traverse g (Node l r) = pure Node <*> traverse g l <*> traverse g r 
+
+-- > traverse dec tree
+-- Just (Node (Node (Leaf 2) (Leaf 3)) (Leaf 4))
+-- > traverse dec tree'
+-- Just (Node (Node (Leaf 2) (Leaf 3)) (Leaf 4))
+-- > traverse dec $ Node (Leaf 1) (Leaf 2)
+-- Just (Node (Leaf 0) (Leaf 1))
+-- > traverse dec $ Node (Leaf 0) (Leaf 2)
+-- Nothing
+
+-- traverse g = sequence.fmap g
+
