@@ -84,3 +84,4 @@ comp' (Add x y) c = comp' x (comp' y (ADD : c))
 -- *Main> exec (comp' e [])  []
 -- [9]
 
+
