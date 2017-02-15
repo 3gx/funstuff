@@ -1,3 +1,4 @@
+-- https://jtobin.io/sharing-in-haskell-edsls
 
 data Expr a = Lit Int
             | Add (Expr a) (Expr a)
