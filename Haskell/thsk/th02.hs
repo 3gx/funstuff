@@ -48,6 +48,7 @@ main = do
   print $ $(tupleReplicate 3) 42
   runQ lamQ >>= print 
   runQ (summ 2) >>= print
+  runQ lamQ >>= putStrLn.pprint
   print $ $(printf "Str %s and dbl %d") "test" 42
   putStrLn $ $(printf "Error in file %s line %d: %s") "io.cpp" 325 "printer not found" 
 
