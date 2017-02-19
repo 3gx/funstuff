@@ -54,3 +54,15 @@ genPE s n = do
   ids <- replicateM n (newName s)
   return (map varP ids, map varE ids)  
 -}
+
+fibs :: [Integer]
+fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
+
+fibsQ :: Q Exp
+fibsQ = [| fibs |]
+
+fibQ :: Int -> Q Exp
+fibQ n = [| fibs !! n |]
+
+fibSQ :: Int -> Q Exp
+fibSQ n = [| take n $ fibs |]

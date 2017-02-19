@@ -26,5 +26,7 @@ main = do
   runQ (cnst' 3 "hey!") >>= putStrLn.pprint
   runQ (cnst'' 3 "hey!") >>= putStrLn.pprint
   print $ zip3' [1,2,3] "abcdef" [32.0,4.0]
+  print $ $(fibQ 10)
+  print $ $(fibSQ 10)
 
 
