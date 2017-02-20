@@ -5,7 +5,10 @@
 import Th04
 import Language.Haskell.TH
 
+primes= $(primeQ 0 2390)
+
 main = do
   runQ [d| x= 5|] >>= print
   runQ [t| Int |] >>= print
   runQ [p|(x,y)|] >>= print
+  print $ length $ primes
