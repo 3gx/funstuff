@@ -8,7 +8,7 @@ import Data.Traversable (traverse)
 import Data.Maybe
 import Data.Function (on)
 
-data Person      = Person  String [Person] deriving Show
+data Person      = Person  { name0 :: String, friends0 :: [Person]} deriving Show
 data Person' ref = Person' String [ref] deriving Show
 
 instance MuRef Person where
@@ -63,6 +63,9 @@ makeUnique p = do
 is :: UniquePerson -> UniquePerson -> Bool
 is = (==) `on` identity
 
+is0 :: Person -> Person -> Bool
+is0 = (==) `on` name0
+
 
 main = do
     let bob   = Person "Bob"   [fred, alice]
@@ -77,4 +80,11 @@ main = do
     print $ fred' `is` (friends bob' !! 0)
     print $ fred' `is` (friends bob' !! 1)
     print $ alice' `is` (friends bob' !! 1)
+
+   -- not clear why we need reifyGraph here ...
+    print "BUT"
+    print $ fred `is0` (friends0 alice !! 0)
+    print $ fred `is0` (friends0 bob !! 0)
+    print $ fred `is0` (friends0 bob !! 1)
+    print $ alice `is0` (friends0 bob !! 1)
 
