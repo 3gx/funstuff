@@ -34,16 +34,19 @@ remainingCells  =  (char ',' >> cells)
 
 -- Each cell contains 0 or more characters, which must not be a comma or EOL
 cellContent :: GenParser Char st String
-cellContent = many (noneOf ",\n")
+cellContent = many (noneOf ",\n\r")
 
--- The end of line character is \n
+-- The end of line character is \n or \n\r
 eol :: GenParser Char st Char
-eol = char '\n'
+eol = do 
+    char '\n'
+    char '\r' <|> return '\n'
+      
 
 parseCSV :: String -> Either ParseError [[String]]
 parseCSV input = parse csvFile "(unknown)" input
 
 main = do
-  let p =  parseCSV "a,bc, def ,hijk\n 12,  3456 ,    67899 \n"
+  let p =  parseCSV "a,bc, def ,hijk\n 12,  3456 ,    67899 \n\r"
   print p
   
