@@ -74,4 +74,7 @@ main = do
 
     -- Test that Bob and Alice know the exact same Fred
     print $ fred' `is` (friends alice' !! 0)
+    print $ fred' `is` (friends bob' !! 0)
+    print $ fred' `is` (friends bob' !! 1)
+    print $ alice' `is` (friends bob' !! 1)
 
