@@ -12,8 +12,11 @@ import Language.Haskell.TH.Quote
 
 string :: QuasiQuoter
 string = QuasiQuoter
-    { quoteExp = \s -> [| s |]
+    { quoteExp = \s -> [| s |],
       -- OR, with Language.Haskell.TH.Syntax imported: quoteExp = lift
+      quotePat = undefined,
+      quoteType = undefined,
+      quoteDec = undefined
     }
 
 
@@ -47,7 +50,7 @@ makeChunks ts = case parseOnly parser ts of
             else loop (var : Left text : xs)
 
 instance Lift Text where
-	lift t = litE (stringL (unpack t))
+   lift t = litE (stringL (unpack t))
 
 format :: QuasiQuoter
 format = QuasiQuoter
@@ -59,9 +62,26 @@ format = QuasiQuoter
 
 
         -- and now to fold it all together ... 
-        in foldr (\l r -> appE [| T.append |] l `appE` r) [| T.empty |] liftedChunks
+        in foldr (\l r -> appE [| T.append |] l `appE` r) [| T.empty |] liftedChunks,
 
         -- note that: appE :: Q Exp -> Q Exp -> Q Exp; it acts as function application for Q Exps
         --            [| T.append |] is the Q Exp form of T.append
+      quotePat = undefined,
+      quoteType = undefined,
+      quoteDec = undefined
+    }
+
+format1 :: QuasiQuoter
+format1 = QuasiQuoter
+    { quoteExp = \s ->
+        let chunks       = makeChunks (T.pack s)
+            liftedChunks = flip map chunks $ \c -> case c of
+                Left  t -> [| t |]           -- lift raw text
+                Right v -> varE (mkName v) -- get a global Name from the name given
+        in appE [| T.concat |] (listE liftedChunks),
+        -- note that listE :: [Q Exp] -> Q Exp
+      quotePat = undefined,
+      quoteType = undefined,
+      quoteDec = undefined
     }
 
