@@ -1,6 +1,7 @@
 -- http://book.realworldhaskell.org/read/using-parsec.html
 -- JSON parser
 
+
 import JSONClass
 import Numeric (readFloat, readHex, readSigned)
 import Control.Applicative (empty)
@@ -69,4 +70,14 @@ p_object = JObj <$> p_series '{' p_field '}'
 
 p_array :: CharParser () (JAry JValue)
 p_array = JAry <$> p_series '[' p_value ']'
+
+
+str =  unlines ["{",
+    "\"glossary\":  \"example glossary\", ",
+    "\"test\": 42",
+    "}"]
+
+
+main = do
+  print $ parse p_text "" str
 
