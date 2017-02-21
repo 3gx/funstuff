@@ -3,6 +3,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
+-- http://quasimal.com/posts/2012-05-25-quasitext-and-quasiquoting.html
+
 import Language.Haskell.TH 
 import Language.Haskell.TH.Quote
 import Data.Text (unpack)
