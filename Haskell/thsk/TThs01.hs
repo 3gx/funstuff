@@ -36,5 +36,5 @@ compose1 f g = [|| $$f . $$g ||]
 
 mkPow1 :: Num a => Int -> TExpQ (a -> a)
 mkPow1 0 = [|| const 1 ||]
-mkPow1 n = [|| \x -> x + $$(mkPow1 (n-1)) x ||]
+mkPow1 n = [|| \x -> x * $$(mkPow1 (n-1)) x ||]
 
