@@ -87,6 +87,8 @@ instance Num a => Num (Expr a) where
 f1 = 3 * Var 'x' + 4 -- represents `\x -> 3 * x + 4`
 g1 = 4 - Var 'x' * Var 'x' -- represents `\x -> 4 - x * x`
 fx1 = Var 'x' * Var 'x' - 3 * Var 'x'
+fx x = x *x - 3 *x
+fxy x y = x*x + 3*x*y
 
 -- `d` will find the derivative of a haskell function. We need a way to
 -- turn an `Expr a` into a haskell function. `applyExpr` helps us do that.
@@ -128,5 +130,9 @@ main = do
   print $ (f1, deriv f1)
   print $ (g1, deriv g1)
   print $ (fx1, deriv fx1)
+  print $ d (\x -> 3 * x*x + 4) (Var 'x')
+  print $ d fx (Var 'x')
+  print $ fx (Dual (Var 'x') (Const 1))
+  print $ fxy (Dual (Var 'x') (Const 1)) (Dual (Var 'y') (Const 0))
 
 
