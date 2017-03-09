@@ -105,6 +105,40 @@ tf1_tree = (tf1 :: Tree)
 tf1_tree1 = "Node \"Add\" [Node \"Lit\" [Leaf \"8\"],Node \"Neg\" [Node \"Add\" [Node \"Lit\" [Leaf \"1\"],Node \"Lit\" [Leaf \"2\"]]]]"
 tf1_d' = fromTree tf1_tree
 
+instance (ExpSYM repr, ExpSYM repr') => ExpSYM (repr,repr') where
+  lit x = (lit x, lit x)
+  neg (e1, e2) = (neg e1, e2)
+  add (e11, e12) (e21,e22) = (add e11 e21, add e12 e22)
+
+duplicate :: (ExpSYM repr, ExpSYM repr') => (repr, repr') -> (repr, repr')
+duplicate = id
+
+check_consume f (Left e) = putStrLn $ "Error: " ++ e
+check_consume f (Right x) = f x
+
+dup_consume ev x = print (ev x1) >> return x2
+  where (x1,x2) = duplicate x
+
+toTree :: Tree -> Tree
+toTree = id
+
+thrice x = dup_consume evalExpSYM x >>= dup_consume viewExpSYM >>= print . toTree
+tf1'_int3 = check_consume thrice . fromTree $ tf1_tree
+
+-- extensibility, use open-recursion style
+
+fromTreeExt :: (ExpSYM repr) => (Tree -> Either ErrMsg repr) -> 
+                                (Tree -> Either ErrMsg repr)
+fromTreeExt self (Node "Lit" [Leaf n])   = liftM lit $ safeRead n
+fromTreeExt self (Node "Neg" [e])        = liftM neg $ self e
+fromTreeExt self (Node "Add" [e1,e2])    = liftM2 add (self e1) (self e2)
+fromTreeExt self e = Left $ "Invalid tree: " ++ show e
+
+fix f = f (fix f)
+fromTree' = fix fromTreeExt
+
+tf1E_int3 = check_consume thrice . fromTree' $ tf1_tree
+
 main = do
   print $ evalExpSYM tf1
   print $ viewExpSYM tf1
@@ -125,3 +159,5 @@ main = do
   case tf1' of
      Left e -> putStrLn $ "Error: " ++ e
      Right e-> do print $ (e :: Int)
+  tf1'_int3
+  tf1E_int3
