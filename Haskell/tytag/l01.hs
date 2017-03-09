@@ -139,6 +139,23 @@ fromTree' = fix fromTreeExt
 
 tf1E_int3 = check_consume thrice . fromTree' $ tf1_tree
 
+-- Extend
+
+instance MulSYM Tree where
+  mul e1 e2 = Node "Mul" [e1,e2]
+
+instance (MulSYM repr, MulSYM repr') => MulSYM (repr,repr') where
+  mul (e11,e12) (e21,e22) = (mul e11 e21, mul e12 e22)
+
+fromTreeExt1 :: (ExpSYM repr, MulSYM repr) => (Tree -> Either ErrMsg repr) -> 
+                                             (Tree -> Either ErrMsg repr)
+fromTreeExt1 self (Node "Mul" [e1,e2])    = liftM2 mul (self e1) (self e2)
+fromTreeExt1 self e = fromTreeExt self e
+
+fromTree1 = fix fromTreeExt1
+
+tfm2'_int3 = check_consume thrice . fromTree1 $ toTree tfm2
+
 main = do
   print $ evalExpSYM tf1
   print $ viewExpSYM tf1
@@ -161,3 +178,4 @@ main = do
      Right e-> do print $ (e :: Int)
   tf1'_int3
   tf1E_int3
+  tfm2'_int3
