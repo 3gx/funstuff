@@ -1,0 +1,2 @@
+-- Chapter 3 from lecture.pdf in 
+--   http://okmij.org/ftp/tagless-final/course/index.html
