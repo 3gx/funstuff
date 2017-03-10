@@ -295,4 +295,32 @@ main = do
   print $ viewExpSYM $ finalize $ initialize tf3'
   print $ viewExpSYM $ push_neg1 tf3'
 
+{-  equational reasoning for flata :
+ 
+    add (add (lit 2) (lit 3)) (lit 5) NonLCA
+        | e1 = (add (lit 2) (lit 3))
+        | e2 = (lit 5)
+        | ctx = NonLCA
 
+ == add (lit 2) (lit 3) LCA((lit 5) NonLCA)
+       | e1 = (lit 2)
+       | e2 = (lit 3)
+       | ctx = LCA((lit 5) NonLCA)
+
+ == lit 2 (LCA((lit 3) LCA((lit 5) NonLCA)))
+       | n = 2
+       | e = ((lit 3) LCA((lit 5) NonLCA))
+
+ = add (lit 2) ((lit 3) LCA((lit 5) NonLCA))
+       | e1 = (lit 2)
+       | e2 = ((lit 3) LCA((lit 5) NonLCA))
+       |            n     (    e          )
+       |    = add (lit 3) ((lit 5) NonLCA)
+       |               e2a = (lit 5) NonLCA
+       |                |         n  
+                        |  = lit 5
+       |                         
+       |    = add (lit 3) (lit 5) 
+
+ = add (lit 2) (add (lit 3) (lit 5)) 
+-}
