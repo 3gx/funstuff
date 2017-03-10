@@ -1,19 +1,22 @@
+-- Chapter 2 from lecture.pdf in 
+--   http://okmij.org/ftp/tagless-final/course/index.html
+ 
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 import Control.Monad
 
 data Exp = Lit Int
-         | Neg Exp
+         | Neg0 Exp
          | Add Exp Exp
   deriving Show
 
 -- initial embedding
-ti1 = Add (Lit 8) (Neg (Add (Lit 1) (Lit 2)))
+ti1 = Add (Lit 8) (Neg0 (Add (Lit 1) (Lit 2)))
 
 eval :: Exp -> Int
 eval (Lit n) = n
-eval (Neg e) = - eval e
+eval (Neg0 e) = - eval e
 eval (Add e1 e2) = eval e1 + eval e2
 
 type Repr = Int
@@ -32,7 +35,7 @@ tf1' = add' (lit' 8) (neg' (add' (lit' 1) (lit' 2)))
 
 view :: Exp -> String
 view (Lit n) = show n
-view (Neg e) = "(-" ++ view e ++ ")"
+view (Neg0 e) = "(-" ++ view e ++ ")"
 view (Add e1 e2) = "(" ++ view e1 ++ " + " ++ view e2 ++ ")"
 
 class ExpSYM repr where
@@ -78,6 +81,8 @@ data Tree = Leaf String
         deriving (Eq, Read, Show)
 
 -- Serializer
+-- ################################# --
+--
 instance ExpSYM Tree where
   lit n = Node "Lit" [Leaf $ show n]
   neg e = Node "Neg" [e]
@@ -88,6 +93,7 @@ instance ExpSYM Tree where
 
 -- De-serializer
 -- fromTree :: (ExpSYM repr, MulSYM repr) => Tree -> repr
+-- ################################# --
 
 type ErrMsg = String
 
@@ -126,6 +132,7 @@ thrice x = dup_consume evalExpSYM x >>= dup_consume viewExpSYM >>= print . toTre
 tf1'_int3 = check_consume thrice . fromTree $ tf1_tree
 
 -- extensibility, use open-recursion style
+-- ################################# --
 
 fromTreeExt :: (ExpSYM repr) => (Tree -> Either ErrMsg repr) -> 
                                 (Tree -> Either ErrMsg repr)
@@ -140,6 +147,7 @@ fromTree' = fix fromTreeExt
 tf1E_int3 = check_consume thrice . fromTree' $ tf1_tree
 
 -- Extend
+-- ################################# --
 
 instance MulSYM Tree where
   mul e1 e2 = Node "Mul" [e1,e2]
@@ -155,6 +163,93 @@ fromTreeExt1 self e = fromTreeExt self e
 fromTree1 = fix fromTreeExt1
 
 tfm2'_int3 = check_consume thrice . fromTree1 $ toTree tfm2
+
+-- ################################# --
+
+push_neg0 :: Exp -> Exp
+push_neg0 e@Lit{} = e
+push_neg0 e@(Neg0 (Lit _)) = e
+push_neg0 (Neg0 (Neg0 e)) = push_neg0 e
+push_neg0 (Neg0 (Add e1 e2)) = Add (push_neg0 (Neg0 e1)) (push_neg0 (Neg0 e2))
+push_neg0 (Add e1 e2)       = Add (push_neg0 e1) (push_neg0 e2)
+
+ti1_norm = push_neg0 ti1
+
+---------------
+
+
+data Ctx = Pos | Neg
+
+instance ExpSYM repr => ExpSYM (Ctx -> repr) where
+  lit n Pos = lit n
+  lit n Neg = neg (lit n)
+  neg e Pos = e Neg
+  neg e Neg = e Pos
+  add e1 e2 ctx = add (e1 ctx) (e2 ctx)
+
+push_neg :: (ExpSYM repr) => (Ctx -> repr) -> repr
+push_neg e = e Pos
+
+instance MulSYM repr => MulSYM (Ctx -> repr) where
+  mul e1 e2 Pos = mul (e1 Pos) (e2 Pos)
+  mul e1 e2 Neg = mul (e1 Pos) (e2 Neg)
+
+{-
+   e      ::= factor | add factor e
+   factor ::= int | neg int   
+
+ addition is right associative
+ -}
+
+flata0 :: Exp -> Exp
+flata0 e@Lit{} = e
+flata0 e@Neg0{} = e
+flata0 (Add (Add e1 e2) e3) = flata0 (Add e1 (Add e2 e3))
+flata0 (Add e1 e2) = Add e1 (flata0 e2)
+
+norm0 :: Exp -> Exp
+norm0  = flata0 . push_neg0
+
+ti3' = (Add ti1 (Neg0 (Neg0 ti1)))
+ti3'_view = view ti3'
+ti3'_eval = eval ti3'
+
+--------------
+
+data Ctx1 e = LCA e | NonLCA
+
+instance ExpSYM repr => ExpSYM (Ctx1 repr -> repr) where
+  lit n NonLCA   = lit n
+  lit n (LCA e)  = add (lit n) e
+  neg e NonLCA   = neg (e NonLCA)
+  neg e (LCA e3) = add (neg (e NonLCA)) e3 -- assume only lits are negated
+  add e1 e2 ctx  = e1 (LCA (e2 ctx))
+
+flata :: (Ctx1 repr -> repr) -> repr
+flata e = e NonLCA
+
+norm = flata . push_neg
+
+tf3' = (add tf1 (neg (neg tf1)))
+tf3'_view = viewExpSYM tf3'
+tf3'_eval = evalExpSYM tf3'
+
+--------------------
+
+instance ExpSYM Exp where
+  lit = Lit
+  neg = Neg0
+  add = Add
+
+initialize :: Exp -> Exp
+initialize = id
+
+finalize :: ExpSYM repr  => Exp -> repr
+finalize (Lit n) = lit n
+finalize (Neg0 e) = neg (finalize e)
+finalize (Add e1 e2) = add (finalize e1) (finalize e2)
+
+push_neg1 = finalize . push_neg0 . initialize
 
 main = do
   print $ evalExpSYM tf1
@@ -179,3 +274,25 @@ main = do
   tf1'_int3
   tf1E_int3
   tfm2'_int3
+  print "---------------- Pushing Neg ----------------"
+  print $ ti1
+  print $ (show ti1_norm ) ++ " = " ++ show ( eval ti1_norm)
+  print $ (tf1 :: String)
+  print $ (push_neg tf1 :: String)
+  print $ (tfm2 :: Int)
+  print $ (neg tfm2 :: String)
+  print $ (push_neg $ neg tfm2 :: String)
+  print $ (push_neg $ neg tfm2 :: Int)
+  print "------ flattening ------"
+  print ti3'_view
+  print ti3'_eval
+  print $ view $ norm0 ti3' 
+  print tf3'_view
+  print tf3'_eval
+  print $ viewExpSYM $ norm tf3' 
+  print "---- conversion ---"
+  print $ initialize tf3'
+  print $ viewExpSYM $ finalize $ initialize tf3'
+  print $ viewExpSYM $ push_neg1 tf3'
+
+
