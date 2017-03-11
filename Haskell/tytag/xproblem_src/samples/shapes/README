@@ -1,0 +1,7 @@
+We study scenarios of operations that require multiple dispatch,
+especially in the context of extensibility (say modular extension). We
+begin with the example from the following paper: MultiJava: Modular
+Open Classes and Symmetric Multiple Dispatch for Java by Curtis
+Clifton, Gary T. Leavens, Craig Chambers, and Todd Millstein. We also
+cover an operation with type dependencies between argument and result.
+

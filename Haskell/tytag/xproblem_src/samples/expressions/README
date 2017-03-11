@@ -1,0 +1,5 @@
+We cover essentially the seminal expression problems (as phrased by
+Wadler) in a number of ways, and we engage in an inquiry on some
+follow-up question; see the lecture to this end. For instance, we
+discuss the additional challenges arising from de-serialization.
+

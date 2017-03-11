@@ -1,0 +1,8 @@
+"Intersect Rectangle Rectangle"
+"Intersect Circle Rectangle (or v.v.)"
+"Intersect Circle Circle"
+"(Shape x, Shape y) => Intersect x y, (Shape x, Shape y) => Intersect x y, (Shape x, Shape y) => Intersect x y, (Shape x, Shape y) => Intersect x y, (Shape x, Shape y) => Intersect x y, (Shape x, Shape y) => Intersect x y, (Shape x, Shape y) => Intersect x y"
+Drawing a rectangle.
+Drawing a rectangle.
+Drawing a circle.
+Drawing a circle.

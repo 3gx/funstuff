@@ -1,0 +1,3 @@
+The code has been tested with GHC 6.10.4. Some versions of the shown
+Haskell encoding(s) were briefly discussed in Laemmel & Ostermann's
+GPCE 2006 paper.

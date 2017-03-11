@@ -1,0 +1,3 @@
+Add (Lit 2) (Lit 3)
+Node {rootLabel = "Add", subForest = [Node {rootLabel = "Lit", subForest = []},Node {rootLabel = "Lit", subForest = []}]}
+2 + 3 = 5

@@ -1,0 +1,5 @@
+%.test:
+	@echo \ \-\> Testing ${this}/$*.hs
+	@ghci ${ghciopt} $*.hs < ${incl}/Main.in > $*.out
+	@diff -b $*.out $*.ref
+	@rm $*.out
