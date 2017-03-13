@@ -1,9 +1,11 @@
 -- Chapter 3 from lecture.pdf in  
 --   http://okmij.org/ftp/tagless-final/course/index.html
 --
--- 3.1 The problem of tags
 
 {-# LANGUAGE GADTs #-}
+
+-- 3.1 The problem of tags
+--------------------------
 
 data Exp0 = V0 Var0
          | B0 Bool
@@ -86,6 +88,9 @@ typecheck :: Exp0 -> Either ErrMsg Exp0
 type ErrMsg  String
 -}
 
+-- 3.2 Tagless, initial & final embeddings
+------------------------------------------
+
 data Exp env t where 
   B :: Bool           -> Exp env Bool
   V :: Var env t      -> Exp env t
@@ -114,7 +119,22 @@ ti1_eval = eval () ti1
 
 ti2oo = A (L (V (VS VZ))) (B True) 
 
+vz0 (vc,_) = vc
+vs0 vp (_, envr) = vp envr
+
+b0 bv env    = bv
+l0 e  env    = \x -> e (x,env)
+a0 e1 e2 env = (e1 env) (e2 env)
+
+tf1' = a0 (l0 vz0) (b0 True)
+tf1'_eval = tf1' ()
+
+-- 3.3 Tagless final embedding with de Bruijn indices
+------------------------------------------------------
+
+
 main = do
   print $ ti1'
   print $ ti1'_eval
   print $ ti1_eval
+  print $ tf1'_eval
