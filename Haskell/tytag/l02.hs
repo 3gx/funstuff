@@ -3,6 +3,7 @@
 --
 
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- 3.1 The problem of tags
 --------------------------
@@ -109,13 +110,13 @@ lookp VZ (x,_) = x
 lookp (VS v) (_,env) = lookp v env
 
 
-eval :: env -> Exp env t -> t
-eval env (V v) = lookp v env
-eval env (B b) = b
-eval env (L e) = \x -> eval (x,env) e
-eval env (A e1 e2) = (eval env e1) (eval env e2)
+eval1 :: env -> Exp env t -> t
+eval1 env (V v) = lookp v env
+eval1 env (B b) = b
+eval1 env (L e) = \x -> eval1 (x,env) e
+eval1 env (A e1 e2) = (eval1 env e1) (eval1 env e2)
 
-ti1_eval = eval () ti1
+ti1_eval = eval1 () ti1
 
 ti2oo = A (L (V (VS VZ))) (B True) 
 
@@ -132,9 +133,61 @@ tf1'_eval = tf1' ()
 -- 3.3 Tagless final embedding with de Bruijn indices
 ------------------------------------------------------
 
+class Semantics repr where
+  int :: Int -> repr h Int
+  add :: repr h Int -> repr h Int -> repr h Int
+
+  z   :: repr (a,h) a
+  s   :: repr h a -> repr (any,h) a
+  lam :: repr (a,h) b -> repr h (a->b)
+  app :: repr h (a->b) -> repr h a -> repr h b
+
+-- td1 :: (Semantics repr) => repr h Int
+td1 = add (int 1) (int 2)
+
+-- td2o ::: (Semantics repr) => repr (Int, h) (Int -> Int)
+td2o = lam (add z (s z))
+
+-- td3 :: (Semantics repr) => rerp h  ((Int -> Int) -> Int)
+td3 = lam (add (app z (int 1)) (int 2))
+
+newtype R h a = R { unR:: h -> a}
+
+instance Semantics R where
+  int x     = R $ const x
+  add e1 e2 = R $ \h -> (unR e1 h) + (unR e2 h)
+
+  z         = R $ \(x,_) -> x
+  s v       = R $ \(_,h) -> unR v h
+  lam e     = R $ \h -> \x -> unR e (x,h)
+  app e1 e2 = R $ \h -> (unR e1 h) (unR e2 h)
+
+eval e = unR e ()
+
+newtype S h a = S { unS :: Int -> String }
+
+instance Semantics S where
+  int x     = S $ const $ show x
+  add e1 e2 = S $ \h -> "(" ++ unS e1 h ++  " + " ++ unS e2 h ++ ")"
+
+  z         = S $ \h -> "x" ++ show (h-1)
+  s v       = S $ \h -> unS v (h-1)
+  lam e     = S $ \h -> let x = "x" ++ show h
+                        in "(\\" ++ x ++ " -> " ++ unS e(h+1) ++ ")"
+  app e1 e2 = S $ \h -> "(" ++ unS e1 h  ++ " " ++ unS e2 h ++ ")"
+
+view :: S () a -> String
+view e = unS e 0
 
 main = do
   print $ ti1'
   print $ ti1'_eval
   print $ ti1_eval
   print $ tf1'_eval
+  print $ view td1
+  print $ eval td1
+  print $ view td3
+  print $ eval td3 $ (*2)
+  print $ unS td2o 1
+  print $ unR td2o (3,()) $ 5
+
