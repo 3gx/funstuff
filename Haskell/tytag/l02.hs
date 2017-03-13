@@ -145,6 +145,9 @@ class Semantics repr where
 -- td1 :: (Semantics repr) => repr h Int
 td1 = add (int 1) (int 2)
 
+-- td2 :: (Semantics repr) => repr h (Int -> Int)
+td2 = lam (add z z)
+
 -- td2o ::: (Semantics repr) => repr (Int, h) (Int -> Int)
 td2o = lam (add z (s z))
 
