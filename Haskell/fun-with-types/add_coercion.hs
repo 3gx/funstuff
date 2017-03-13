@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
+-- {-# LANGUAGE FlexibleContexts #-}
 
 class Add a b where
   type SumTy a b
@@ -15,6 +15,7 @@ instance Add Double Integer where
   type SumTy Double Integer = Double
   add x y = x + fromIntegral y
 
+-- requires FlexibleInstances
 instance (Num a) => Add a a where
   type SumTy a a = a
   add x y = x + y
