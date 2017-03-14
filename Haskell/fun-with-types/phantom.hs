@@ -134,7 +134,21 @@ with01 a = acquire_locks `bind` \_ ->
      release (mkLock::Lock One)
 
 critical1 :: (Get One p ~ Locked) => LockM p p ()
-critical1 = LockM (putStrLn "Critical section 1")
+critical1 = LockM (putStrLn "Critical section 1") 
+
+-- Appendix B.2
+---------------
+
+type family Plus m n
+type instance Plus Zero n = n
+type instance Plus (Succ m) n = Succ (Plus m n)
+
+plus :: m -> n -> Plus m n
+plus = undefined
+
+tplus = plus (undefined::Two) (undefined::Three)
+tplus' x = if True then plus x (undefined::One) else tplus
+
 
 main = do
   print $ toInt (undefined :: Two)
