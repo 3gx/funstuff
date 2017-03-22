@@ -26,15 +26,16 @@ askPassphrase = do
 newtype MaybeT m a = MaybeT { runMaybeT :: m (Maybe a) }
 
 instance Monad m => Functor (MaybeT m) where
-  fmap f (MaybeT mx) = MaybeT $ mx >>= return . fmap f -- \x -> return (fmap f x)
+ -- fmap f (MaybeT mx) = MaybeT $ mx >>= return . fmap f -- \x -> return (fmap f x)
+  fmap f (MaybeT mx) = MaybeT $ liftM (fmap f) mx 
                                             
 instance Monad m => Applicative (MaybeT m) where
---  pure = MaybeT . return . Just
-  pure = MaybeT . return . return
+  pure = MaybeT . return . Just
+--  pure = MaybeT . return . return
 --  pure x = MaybeT $ return (Just x)
 --  pure x = MaybeT $ return (return x)
 --  (MaybeT mf) <*> (MaybeT mx) = MaybeT $ mf >>= \f -> mx >>= return . (f <*>) -- \x -> return (f <*> x)
-  (MaybeT mf) <*> (MaybeT mx) = MaybeT $ mf >>= \f -> mx >>= return . (f <*>) -- \x -> return (f <*> x)
+  (MaybeT mf) <*> (MaybeT mx) = MaybeT $ liftM2 (<*>) mf mx
 
 instance Monad m => Monad (MaybeT m) where
   return = MaybeT . return . Just
@@ -64,10 +65,13 @@ instance MonadTrans MaybeT where
     lift = MaybeT . (liftM Just)
 
 getPassphrase' :: MaybeT IO String
+{-
 getPassphrase' = do 
       s <- lift getLine
       guard (isValid s)
       return s 
+-}
+getPassphrase' = (lift getLine) >>= \s -> guard (isValid s) >>= \_ -> return s
 
 askPassphrase' :: MaybeT IO ()
 askPassphrase' =  do
