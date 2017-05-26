@@ -51,6 +51,23 @@ struct LLVMCodeGen {
       default:
         assert(0 && "Must not happen");
       }
+      return 0;
+    }
+
+
+    template<class T>
+    llvm::Value* mkConst(T val) 
+    {
+      switch (TypeKind) {
+      case int32:
+        return Builder.getInt32(val);
+      case float32:
+      case float64:
+        assert(0 && "Unsupported");
+      default:
+        assert(0 && "Must not happen");
+      }
+      return nullptr;
     }
   };
 
@@ -86,10 +103,20 @@ struct LLVMCodeGen {
   };
 
   Function mkFunction(std::string name, Type ret_type,
-                      std::vector<Type> arg_type = {}) {
-    llvm::FunctionType *funcType = llvm::FunctionType::get(ret_type, false);
+                      std::vector<std::pair<Type, std::string>> args = {}) {
+    std::vector<llvm::Type*> args_type;
+    args_type.reserve(args.size());
+    for (auto arg : args) {
+      args_type.push_back(arg.first);
+    }
+    llvm::FunctionType *funcType =
+        llvm::FunctionType::get(ret_type, args_type, false);
     llvm::Function *func = llvm::Function::Create(
         funcType, llvm::Function::ExternalLinkage, name, &M);
+    int count = 0;
+    for (auto &arg : func->args()) {
+      arg.setName(args[count++].second);
+    }
     return Function{*func};
   }
 
@@ -97,18 +124,26 @@ struct LLVMCodeGen {
   //------------------- Basic Block -------------------------------------------
 
   struct BasicBlock {
+    LLVMCodeGen &CG;
     IRBuilder &Builder;
     llvm::BasicBlock &BB;
-    BasicBlock(IRBuilder &builder, llvm::BasicBlock &bb)
-        : Builder(builder), BB(bb) {}
+    BasicBlock(LLVMCodeGen &cg, IRBuilder &builder, llvm::BasicBlock &bb)
+        : CG(cg), Builder(builder), BB(bb) {}
     operator llvm::BasicBlock *() { return &BB; }
     void set() { Builder.SetInsertPoint(&BB); }
+
+    void mkRet() 
+    {
+      Builder.CreateRet(CG.mkInt().mkConst(0));
+    }
+
   };
 
   BasicBlock mkBasicBlock(Function &func, std::string name) {
     llvm::BasicBlock *bb = llvm::BasicBlock::Create(Context, name, func);
-    return BasicBlock{Builder, *bb};
+    return BasicBlock{*this, Builder, *bb};
   }
+
 
 
 };
@@ -122,10 +157,12 @@ int main(int argc, char *argv[]) {
 
   auto gvar = cg.mkGlobalVar("x", cg.mkFloat());
 
-  auto f = cg.mkFunction("foo", cg.mkInt());
+  auto f = cg.mkFunction("foo", cg.mkInt(),
+                         {{cg.mkInt(), "a"}, {cg.mkFloat(), "b"}});
   auto entry = cg.mkBasicBlock(f, "entry");
   entry.set();
   f.verify();
+  entry.mkRet();
 
   cg.dump();
   return 0;
