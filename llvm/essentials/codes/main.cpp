@@ -40,11 +40,13 @@ struct LLVMCodeGen {
 
     void mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB,
                       BasicBlock mergeBB) {
+      auto bb = CG->Builder.GetInsertBlock();
       CG->Builder.CreateCondBr(V, thenBB.get(), elseBB.get());
       CG->Builder.SetInsertPoint(thenBB.get());
       CG->Builder.CreateBr(mergeBB.get());
       CG->Builder.SetInsertPoint(elseBB.get());
       CG->Builder.CreateBr(mergeBB.get());
+      CG->Builder.SetInsertPoint(bb);
     }
   };
   
@@ -151,11 +153,6 @@ struct LLVMCodeGen {
       llvm::BasicBlock *bb = llvm::BasicBlock::Create(CG.Context, name, &F);
       return {CG, *bb};
     }
-    BasicBlock mkAndSetBasicBlock(std::string name) {
-      auto bb = mkBasicBlock(std::move(name));
-      bb.set();
-      return bb;
-    }
   };
 
   Function mkFunction(std::string name, Type ret_type,
@@ -206,6 +203,12 @@ struct LLVMCodeGen {
   //-------------------- Ops
 
   void mkRet(Value val) { Builder.CreateRet(val.get()); }
+
+  // ---------------- loop
+  void mkLoop(Value begin, Value end, Value step, Value iv, BasicBlock loopBB,
+              BasicBlock afterBB) {
+    auto preheaderBB = Builder.GetInsertBlock();
+  }
 };
 
 static llvm::LLVMContext &ContextRef = llvm::getGlobalContext();
@@ -220,22 +223,27 @@ int main(int argc, char *argv[]) {
   auto f = cg.mkFunction("foo", cg.mkIntTy(),
                          {{cg.mkIntTy(), "a"}, {cg.mkFloatTy(), "b"}});
 
+  auto entry = f.mkBasicBlock("entry");
+  auto thenBB = f.mkBasicBlock("then");
+  auto elseBB = f.mkBasicBlock("else");
+  auto mergeBB = f.mkBasicBlock("cont");
 
-  auto thenBB = f.mkAndSetBasicBlock("then"); 
-  auto then_val = f.arg(0) + cg.mkInt(1);
-
-  auto elseBB = f.mkAndSetBasicBlock("else");
-  auto else_val = f.arg(1) + cg.mkInt(2);
-
-  auto mergeBB = f.mkAndSetBasicBlock("cont");
-  auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
-  cg.mkRet(phi);
-
-  auto entry = f.mkAndSetBasicBlock("entry");
+  entry.set();
   auto val = cg.mkInt(100);
   auto cmp = f.arg(0) < val;
   auto cnd = cmp != cg.mkInt(0);
   cnd.mkIfThenElse(thenBB, elseBB, mergeBB);
+
+  thenBB.set();
+  auto then_val = f.arg(0) + cg.mkInt(1);
+
+  elseBB.set();
+  auto else_val = f.arg(1) + cg.mkInt(2);
+
+  mergeBB.set();
+  auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
+  cg.mkRet(phi);
+
 
   f.verify();
 
