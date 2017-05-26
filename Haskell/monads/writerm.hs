@@ -33,3 +33,19 @@ listens f m = do (a,w) <- listen m; return (a,f w)
  
 censor :: (MonadWriter w m) => (w -> w) -> m a -> m a 
 censor f m = pass $ do a <- m; return (a,f)
+
+data Entry = Log { count :: Int, msg :: String } deriving (Eq, Show)
+
+logMsg :: String -> Writer [Entry] ()
+logMsg s = tell [Log 1 s]
+
+mergeEntries :: [Entry] -> [Entry] -> Writer [Entry] [Entry]
+mergeEntries [] x = return x
+mergeEntries x [] = return x
+mergeEntries [e1] [e2] = let (Log n msg) = e1
+                             (Log n' msg') = e2
+                         in if msg == msg' then
+                              return [(Log (n+n') msg)]
+                            else
+                              do tell [e1]
+                                 return [e2]

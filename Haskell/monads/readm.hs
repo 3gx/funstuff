@@ -68,3 +68,13 @@ resolve (I t ds) = do tmplName <- resolve t
                                        local (addDefs defs) (resolve t')
                          Nothing -> return""
 resolve (C ts) = (liftM concat) (mapM resolve ts)
+
+type Envr = [(String, Int)] 
+
+lookp :: String -> Envr -> Maybe Int
+lookp str env = lookup str env
+
+envr :: Envr
+envr = [("abc",1), ("def",2), ("hij",3)]
+
+

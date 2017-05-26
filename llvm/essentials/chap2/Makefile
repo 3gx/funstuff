@@ -1,6 +1,4 @@
-LLVM_DIR= $(HOME)/soft/llvm-3.8.1.src/bin/
-LLVM_BIN=$(LLVM_DIR)/bin
-LLVM_INCLUDE=$(LLVM_DIR)/include
+LLVM_BIN=/usr/bin
 LLVM_MODULES=core
 LLVM_CXXFLAGS=$(shell $(LLVM_BIN)/llvm-config --cxxflags)
 LLVM_LDFLAGS=$(shell $(LLVM_BIN)/llvm-config --ldflags)
