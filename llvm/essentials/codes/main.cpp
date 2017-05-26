@@ -15,7 +15,21 @@ struct LLVMCodeGen {
               llvm::IRBuilder<> &builder)
       : Context(context), M(m), Builder(builder) {}
   void dump() const { M.dump(); }
+  
+  // -----------------------  Value -------------------------------------------
+  struct Value {
+    IRBuilder &Builder;
+    llvm::Value &V;
 
+    Value(IRBuilder &builder, llvm::Value &value)
+        : Builder(builder), V(value) {}
+
+    operator llvm::Value *() { return &V; }
+
+    Value operator*(Value R) const {
+      return Value{Builder, *Builder.CreateMul(&V, R, "mul")};
+    }
+  };
 
   //----------------------- Type ---------------------------------------------
 
@@ -53,41 +67,6 @@ struct LLVMCodeGen {
       }
       return 0;
     }
-
-
-    template<class T>
-    llvm::Value* mkConst(T val) 
-    {
-      switch (TypeKind) {
-      case int32:
-        return Builder.getInt32(val);
-      case float32:
-      case float64:
-        assert(0 && "Unsupported");
-      default:
-        assert(0 && "Must not happen");
-      }
-      return nullptr;
-    }
-  };
-
-  Type mkInt() const { return Type(Builder, Type::int32); }
-  Type mkFloat() const { return Type(Builder, Type::float32); }
-  Type mkDouble() const { return Type(Builder, Type::float64); }
-
-  // -----------------------  Value -------------------------------------------
-  struct Value {
-    IRBuilder &Builder;
-    llvm::Value &V;
-
-    Value(IRBuilder &builder, llvm::Value &value)
-        : Builder(builder), V(value) {}
-
-    operator llvm::Value *() { return &V; }
-
-    Value operator*(Value R) const {
-      return Value{Builder, *Builder.CreateMul(&V, R)};
-    }
   };
 
   // --------------------- Global Variable -----------------------------------
@@ -110,11 +89,24 @@ struct LLVMCodeGen {
   //---------------------- Function -------------------------------------------
   
   struct Function {
+    IRBuilder &Builder;
     llvm::Function &F;
-    Function(llvm::Function &f) : F(f) {}
+    std::vector<llvm::Value*> Args;
+    Function(IRBuilder &builder, llvm::Function &f) : Builder(builder), F(f) {
+      Args.reserve(16);
+      for (auto &arg : F.args()) {
+        Args.push_back(&arg);
+      }
+    }
     void verify() const { llvm::verifyFunction(F); }
 
     operator llvm::Function *() { return &F; }
+
+    Value arg(size_t num) const {
+      assert(num < Args.size());
+      return Value{Builder, *Args[num]};
+    }
+
 
   };
 
@@ -133,7 +125,7 @@ struct LLVMCodeGen {
     for (auto &arg : func->args()) {
       arg.setName(args[count++].second);
     }
-    return Function{*func};
+    return Function{Builder, *func};
   }
 
 
@@ -148,11 +140,6 @@ struct LLVMCodeGen {
     operator llvm::BasicBlock *() { return &BB; }
     void set() { Builder.SetInsertPoint(&BB); }
 
-    void mkRet() 
-    {
-      Builder.CreateRet(CG.mkInt().mkConst(0));
-    }
-
   };
 
   BasicBlock mkBasicBlock(Function &func, std::string name) {
@@ -160,8 +147,18 @@ struct LLVMCodeGen {
     return BasicBlock{*this, Builder, *bb};
   }
 
+  // ------------- type & vals
+ 
+  Type mkInt() const { return Type(Builder, Type::int32); }
+  Value mkInt(int val) const { return {Builder, *Builder.getInt32(val)}; }
+  Type mkFloat() const { return Type(Builder, Type::float32); }
+  Type mkDouble() const { return Type(Builder, Type::float64); }
 
 
+
+  //-------------------- Ops
+
+  void mkRet(Value val) { Builder.CreateRet(val); }
 };
 
 static llvm::LLVMContext &ContextRef = llvm::getGlobalContext();
@@ -177,8 +174,12 @@ int main(int argc, char *argv[]) {
                          {{cg.mkInt(), "a"}, {cg.mkFloat(), "b"}});
   auto entry = cg.mkBasicBlock(f, "entry");
   entry.set();
+
+  auto constant = cg.mkInt(16);
+  auto val      = constant * f.arg(0);
+  cg.mkRet(val);
+
   f.verify();
-  entry.mkRet();
 
   cg.dump();
   return 0;
