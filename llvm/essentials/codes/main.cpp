@@ -151,6 +151,11 @@ struct LLVMCodeGen {
       llvm::BasicBlock *bb = llvm::BasicBlock::Create(CG.Context, name, &F);
       return {CG, *bb};
     }
+    BasicBlock mkAndSetBasicBlock(std::string name) {
+      auto bb = mkBasicBlock(std::move(name));
+      bb.set();
+      return bb;
+    }
   };
 
   Function mkFunction(std::string name, Type ret_type,
@@ -216,21 +221,17 @@ int main(int argc, char *argv[]) {
                          {{cg.mkIntTy(), "a"}, {cg.mkFloatTy(), "b"}});
 
 
-  auto thenBB = f.mkBasicBlock("then"); 
-  thenBB.set();
+  auto thenBB = f.mkAndSetBasicBlock("then"); 
   auto then_val = f.arg(0) + cg.mkInt(1);
 
-  auto elseBB = f.mkBasicBlock("else");
-  elseBB.set();
+  auto elseBB = f.mkAndSetBasicBlock("else");
   auto else_val = f.arg(1) + cg.mkInt(2);
 
-  auto mergeBB = f.mkBasicBlock("cont");
-  mergeBB.set();
+  auto mergeBB = f.mkAndSetBasicBlock("cont");
   auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
   cg.mkRet(phi);
 
-  auto entry = f.mkBasicBlock("entry");
-  entry.set();
+  auto entry = f.mkAndSetBasicBlock("entry");
   auto val = cg.mkInt(100);
   auto cmp = f.arg(0) < val;
   auto cnd = cmp != cg.mkInt(0);
