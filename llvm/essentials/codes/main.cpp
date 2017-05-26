@@ -214,32 +214,26 @@ int main(int argc, char *argv[]) {
 
   auto f = cg.mkFunction("foo", cg.mkIntTy(),
                          {{cg.mkIntTy(), "a"}, {cg.mkFloatTy(), "b"}});
-  auto entry = f.mkBasicBlock("entry");
-  entry.set();
 
-#if 0
-  auto constant = cg.mkInt(16);
-  auto val      = constant * f.arg(0);
-  cg.mkRet(val);
-#endif
-
-  auto val = cg.mkInt(100);
-  auto cmp = f.arg(0) < val;
-  auto cnd = cmp != cg.mkInt(0);
 
   auto thenBB = f.mkBasicBlock("then"); 
-  auto elseBB = f.mkBasicBlock("else");
-  auto mergeBB = f.mkBasicBlock("cont");
-
   thenBB.set();
   auto then_val = f.arg(0) + cg.mkInt(1);
+
+  auto elseBB = f.mkBasicBlock("else");
   elseBB.set();
   auto else_val = f.arg(1) + cg.mkInt(2);
+
+  auto mergeBB = f.mkBasicBlock("cont");
   mergeBB.set();
   auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
   cg.mkRet(phi);
 
+  auto entry = f.mkBasicBlock("entry");
   entry.set();
+  auto val = cg.mkInt(100);
+  auto cmp = f.arg(0) < val;
+  auto cnd = cmp != cg.mkInt(0);
   cnd.mkIfThenElse(thenBB, elseBB, mergeBB);
 
   f.verify();
