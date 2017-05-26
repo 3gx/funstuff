@@ -75,8 +75,23 @@ struct LLVMCodeGen {
   Type mkFloat() const { return Type(Builder, Type::float32); }
   Type mkDouble() const { return Type(Builder, Type::float64); }
 
+  // -----------------------  Value -------------------------------------------
+  struct Value {
+    IRBuilder &Builder;
+    llvm::Value &V;
+
+    Value(IRBuilder &builder, llvm::Value &value)
+        : Builder(builder), V(value) {}
+
+    operator llvm::Value *() { return &V; }
+
+    Value operator*(Value R) const {
+      return Value{Builder, *Builder.CreateMul(&V, R)};
+    }
+  };
 
   // --------------------- Global Variable -----------------------------------
+  
   struct GlobalVar {
     IRBuilder &Builder;
     llvm::GlobalVariable &Var;
@@ -100,6 +115,7 @@ struct LLVMCodeGen {
     void verify() const { llvm::verifyFunction(F); }
 
     operator llvm::Function *() { return &F; }
+
   };
 
   Function mkFunction(std::string name, Type ret_type,
