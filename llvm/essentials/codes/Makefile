@@ -7,7 +7,7 @@ LLVM_LIBS=$(shell $(LLVM_BIN)/llvm-config --libs --system-libs $(LLVM_MODULES))
 CXX=clang++
 LD=$(CXX)
 
-PROG=prog
+PROG=main
 
 all: run
 
