@@ -15,16 +15,65 @@ struct LLVMCodeGen {
               llvm::IRBuilder<> &builder)
       : Context(context), M(m), Builder(builder) {}
   void dump() const { M.dump(); }
+  
+  //----------------------- Type ---------------------------------------------
+
+  struct Type {
+    enum Kind { int32, float32, float64 };
+
+    LLVMCodeGen *CG;
+    Kind TypeKind;
+
+    Type(LLVMCodeGen *cg, Kind type_kind) : CG(cg), TypeKind(type_kind) {}
+    Type(LLVMCodeGen *cg, llvm::Type *ty) : CG(cg) {
+      if (ty->getTypeID() == CG->Builder.getInt32Ty()->getTypeID()) {
+        TypeKind = int32;
+      } else if (ty->getTypeID() == CG->Builder.getFloatTy()->getTypeID()) {
+        TypeKind = float32;
+      } else if (ty->getTypeID() == CG->Builder.getDoubleTy()->getTypeID()) {
+        TypeKind = float64;
+      } else {
+        assert(0 && "Must not happend");
+      }
+    }
+
+    llvm::Type *get() {
+      switch (TypeKind) {
+      case int32:
+        return CG->Builder.getInt32Ty();
+      case float32:
+        return CG->Builder.getFloatTy();
+      case float64:
+        return CG->Builder.getDoubleTy();
+      default:
+        assert(0 && "Must not happen");
+      }
+    }
+
+    size_t size() {
+      switch (TypeKind) {
+      case int32:
+      case float32:
+        return 4;
+      case float64:
+        return 8;
+      default:
+        assert(0 && "Must not happen");
+      }
+      return 0;
+    }
+
+  };
  
 
   //------------------- Basic Block -------------------------------------------
 
   struct BasicBlock {
-    LLVMCodeGen &CG;
-    llvm::BasicBlock &BB;
-    BasicBlock(LLVMCodeGen &cg, llvm::BasicBlock &bb) : CG(cg), BB(bb) {}
-    llvm::BasicBlock *get() { return &BB; }
-    void set() { CG.Builder.SetInsertPoint(&BB); }
+    LLVMCodeGen *CG;
+    llvm::BasicBlock *BB;
+    BasicBlock(LLVMCodeGen *cg, llvm::BasicBlock *bb) : CG(cg), BB(bb) {}
+    llvm::BasicBlock *get() { return BB; }
+    void set() { CG->Builder.SetInsertPoint(BB); }
 
   };
 
@@ -56,6 +105,8 @@ struct LLVMCodeGen {
     llvm::Value *V;
 
     Value(LLVMCodeGen *cg, llvm::Value *value) : CG(cg), V(value) {}
+    Type getType() { return {CG, V->getType()}; }
+
 
     llvm::Value *get() { return V; }
 
@@ -74,49 +125,13 @@ struct LLVMCodeGen {
     }
   };
 
-  //----------------------- Type ---------------------------------------------
-
-  struct Type {
-    enum Kind { int32, float32, float64 };
-
-    LLVMCodeGen &CG;
-    Kind TypeKind;
-
-    Type(LLVMCodeGen &cg, Kind type_kind) : CG(cg), TypeKind(type_kind) {}
-
-    llvm::Type *get() {
-      switch (TypeKind) {
-      case int32:
-        return CG.Builder.getInt32Ty();
-      case float32:
-        return CG.Builder.getFloatTy();
-      case float64:
-        return CG.Builder.getDoubleTy();
-      default:
-        assert(0 && "Must not happen");
-      }
-    }
-
-    size_t size() {
-      switch (TypeKind) {
-      case int32:
-      case float32:
-        return 4;
-      case float64:
-        return 8;
-      default:
-        assert(0 && "Must not happen");
-      }
-      return 0;
-    }
-  };
 
   // --------------------- Global Variable -----------------------------------
   
   struct GlobalVar {
-    LLVMCodeGen &CG;
-    llvm::GlobalVariable &Var;
-    GlobalVar(LLVMCodeGen &cg, llvm::GlobalVariable &var)
+    LLVMCodeGen *CG;
+    llvm::GlobalVariable *Var;
+    GlobalVar(LLVMCodeGen *cg, llvm::GlobalVariable *var)
         : CG(cg), Var(var) {}
   };
 
@@ -125,33 +140,33 @@ struct LLVMCodeGen {
     llvm::GlobalVariable *gvar = M.getNamedGlobal(name);
     gvar->setLinkage(llvm::GlobalValue::CommonLinkage);
     gvar->setAlignment(type.size());
-    return GlobalVar{*this, *gvar};
+    return GlobalVar{this, gvar};
   }
 
   //---------------------- Function -------------------------------------------
   
   struct Function {
-    LLVMCodeGen &CG;
-    llvm::Function &F;
+    LLVMCodeGen *CG;
+    llvm::Function *F;
     std::vector<llvm::Value*> Args;
-    Function(LLVMCodeGen &cg, llvm::Function &f) : CG(cg), F(f) {
+    Function(LLVMCodeGen *cg, llvm::Function *f) : CG(cg), F(f) {
       Args.reserve(16);
-      for (auto &arg : F.args()) {
+      for (auto &arg : F->args()) {
         Args.push_back(&arg);
       }
     }
-    void verify() const { llvm::verifyFunction(F); }
+    void verify() const { llvm::verifyFunction(*F); }
 
-    llvm::Function *get() { return &F; }
+    llvm::Function *get() { return F; }
 
     Value arg(size_t num) {
       assert(num < Args.size());
-      return Value{&CG, Args[num]};
+      return Value{CG, Args[num]};
     }
 
     BasicBlock mkBasicBlock(std::string name) {
-      llvm::BasicBlock *bb = llvm::BasicBlock::Create(CG.Context, name, &F);
-      return {CG, *bb};
+      llvm::BasicBlock *bb = llvm::BasicBlock::Create(CG->Context, name, F);
+      return {CG, bb};
     }
   };
 
@@ -170,19 +185,23 @@ struct LLVMCodeGen {
     for (auto &arg : func->args()) {
       arg.setName(args[count++].second);
     }
-    return Function{*this, *func};
+    return Function{this, func};
   }
 
 
   // --------------------------- Phi node ------------------------------------
   struct Phi {
     LLVMCodeGen *CG;
-    llvm::Value *V;
+    llvm::PHINode *V;
 
-    Phi(LLVMCodeGen *cg, llvm::Value *v) : CG(cg), V(v) {}
-    llvm::Value *get() { return V; }
+    Phi(LLVMCodeGen *cg, llvm::PHINode *v) : CG(cg), V(v) {}
+    llvm::PHINode *get() { return V; }
 
     operator Value() { return {CG, V}; }
+
+    void addIncoming(Value v, BasicBlock bb) {
+      V->addIncoming(v.get(), bb.get());
+    }
   };
 
   Phi mkPhi(Type type, std::vector<std::pair<Value, BasicBlock>> edge_list) {
@@ -195,19 +214,25 @@ struct LLVMCodeGen {
 
   // ------------- type & vals
  
-  Type mkIntTy() { return Type(*this, Type::int32); }
+  Type mkIntTy() { return Type(this, Type::int32); }
   Value mkInt(int val) { return {this, Builder.getInt32(val)}; }
-  Type mkFloatTy() { return Type(*this, Type::float32); }
-  Type mkDoubleTy() { return Type(*this, Type::float64); }
+  Type mkFloatTy() { return Type(this, Type::float32); }
+  Type mkDoubleTy() { return Type(this, Type::float64); }
+
+  BasicBlock getCurrentBasicBlock() { return {this, Builder.GetInsertBlock()}; }
 
   //-------------------- Ops
 
   void mkRet(Value val) { Builder.CreateRet(val.get()); }
 
   // ---------------- loop
-  void mkLoop(Value begin, Value end, Value step, Value iv, BasicBlock loopBB,
+  void mkLoop(Value begin, Value end, Value step, BasicBlock loopBB,
               BasicBlock afterBB) {
-    auto preheaderBB = Builder.GetInsertBlock();
+    auto bb = getCurrentBasicBlock();
+    auto iv = mkPhi(step.getType(), {{begin, bb}});
+    
+
+    bb.set();
   }
 };
 
