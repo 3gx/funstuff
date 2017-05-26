@@ -83,6 +83,18 @@ struct LLVMCodeGen {
     gvar->setAlignment(type.size());
     return GlobalVar{*this, *gvar};
   }
+  
+  //------------------- Basic Block -------------------------------------------
+
+  struct BasicBlock {
+    LLVMCodeGen &CG;
+    llvm::BasicBlock &BB;
+    BasicBlock(LLVMCodeGen &cg, llvm::BasicBlock &bb) : CG(cg), BB(bb) {}
+    operator llvm::BasicBlock *() { return &BB; }
+    void set() { CG.Builder.SetInsertPoint(&BB); }
+
+  };
+
 
   //---------------------- Function -------------------------------------------
   
@@ -105,7 +117,10 @@ struct LLVMCodeGen {
       return Value{CG, *Args[num]};
     }
 
-
+    BasicBlock mkBasicBlock(std::string name) {
+      llvm::BasicBlock *bb = llvm::BasicBlock::Create(CG.Context, name, &F);
+      return {CG, *bb};
+    }
   };
 
   Function mkFunction(std::string name, Type ret_type,
@@ -126,22 +141,6 @@ struct LLVMCodeGen {
     return Function{*this, *func};
   }
 
-
-  //------------------- Basic Block -------------------------------------------
-
-  struct BasicBlock {
-    LLVMCodeGen &CG;
-    llvm::BasicBlock &BB;
-    BasicBlock(LLVMCodeGen &cg, llvm::BasicBlock &bb) : CG(cg), BB(bb) {}
-    operator llvm::BasicBlock *() { return &BB; }
-    void set() { CG.Builder.SetInsertPoint(&BB); }
-
-  };
-
-  BasicBlock mkBasicBlock(Function &func, std::string name) {
-    llvm::BasicBlock *bb = llvm::BasicBlock::Create(Context, name, func);
-    return BasicBlock{*this, *bb};
-  }
 
   // ------------- type & vals
  
@@ -166,7 +165,7 @@ int main(int argc, char *argv[]) {
 
   auto f = cg.mkFunction("foo", cg.mkInt(),
                          {{cg.mkInt(), "a"}, {cg.mkFloat(), "b"}});
-  auto entry = cg.mkBasicBlock(f, "entry");
+  auto entry = f.mkBasicBlock("entry");
   entry.set();
 
   auto constant = cg.mkInt(16);
