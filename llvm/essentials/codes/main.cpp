@@ -15,6 +15,20 @@ struct LLVMCodeGen {
               llvm::IRBuilder<> &builder)
       : Context(context), M(m), Builder(builder) {}
   void dump() const { M.dump(); }
+ 
+
+  //------------------- Basic Block -------------------------------------------
+
+  struct BasicBlock {
+    LLVMCodeGen &CG;
+    llvm::BasicBlock &BB;
+    BasicBlock(LLVMCodeGen &cg, llvm::BasicBlock &bb) : CG(cg), BB(bb) {}
+    llvm::BasicBlock *get() { return &BB; }
+    void set() { CG.Builder.SetInsertPoint(&BB); }
+
+  };
+
+  // -----------------------  Boolean -------------------------------------------
 
   struct Boolean {
     LLVMCodeGen *CG;
@@ -22,15 +36,15 @@ struct LLVMCodeGen {
 
     Boolean(LLVMCodeGen *cg, llvm::Value *value) : CG(cg), V(value) {}
 
-    operator llvm::Value *() { return V; }
+    llvm::Value *get() { return V; }
 
-    void mkIfThenElse(llvm::BasicBlock *thenBB, llvm::BasicBlock *elseBB,
-                      llvm::BasicBlock *mergeBB) {
-      CG->Builder.CreateCondBr(V, thenBB, elseBB);
-      CG->Builder.SetInsertPoint(thenBB);
-      CG->Builder.CreateBr(mergeBB);
-      CG->Builder.SetInsertPoint(elseBB);
-      CG->Builder.CreateBr(mergeBB);
+    void mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB,
+                      BasicBlock mergeBB) {
+      CG->Builder.CreateCondBr(V, thenBB.get(), elseBB.get());
+      CG->Builder.SetInsertPoint(thenBB.get());
+      CG->Builder.CreateBr(mergeBB.get());
+      CG->Builder.SetInsertPoint(elseBB.get());
+      CG->Builder.CreateBr(mergeBB.get());
     }
   };
   
@@ -41,17 +55,20 @@ struct LLVMCodeGen {
 
     Value(LLVMCodeGen *cg, llvm::Value *value) : CG(cg), V(value) {}
 
-    operator llvm::Value *() { return V; }
+    llvm::Value *get() { return V; }
 
     Value operator*(Value R) {
-      return {CG, CG->Builder.CreateMul(V, R, "mul")};
+      return {CG, CG->Builder.CreateMul(V, R.get(), "mul")};
+    }
+    Value operator+(Value R) {
+      return {CG, CG->Builder.CreateAdd(V, R.get(), "add")};
     }
 
-    Boolean operator<(llvm::Value *R) {
-      return {CG, CG->Builder.CreateICmpULT(V, R, "lt")};
+    Value operator<(Value R) {
+      return {CG, CG->Builder.CreateICmpULT(V, R.get(), "lt")};
     }
-    Boolean operator!=(llvm::Value *R) {
-      return {CG, CG->Builder.CreateICmpNE(V, R, "ne")};
+    Boolean operator!=(Value R) {
+      return {CG, CG->Builder.CreateICmpNE(V, R.get(), "ne")};
     }
   };
 
@@ -65,7 +82,7 @@ struct LLVMCodeGen {
 
     Type(LLVMCodeGen &cg, Kind type_kind) : CG(cg), TypeKind(type_kind) {}
 
-    operator llvm::Type *() {
+    llvm::Type *get() {
       switch (TypeKind) {
       case int32:
         return CG.Builder.getInt32Ty();
@@ -102,24 +119,12 @@ struct LLVMCodeGen {
   };
 
   GlobalVar mkGlobalVar(std::string name, Type type) {
-    M.getOrInsertGlobal(name, type);
+    M.getOrInsertGlobal(name, type.get());
     llvm::GlobalVariable *gvar = M.getNamedGlobal(name);
     gvar->setLinkage(llvm::GlobalValue::CommonLinkage);
     gvar->setAlignment(type.size());
     return GlobalVar{*this, *gvar};
   }
-  
-  //------------------- Basic Block -------------------------------------------
-
-  struct BasicBlock {
-    LLVMCodeGen &CG;
-    llvm::BasicBlock &BB;
-    BasicBlock(LLVMCodeGen &cg, llvm::BasicBlock &bb) : CG(cg), BB(bb) {}
-    operator llvm::BasicBlock *() { return &BB; }
-    void set() { CG.Builder.SetInsertPoint(&BB); }
-
-  };
-
 
   //---------------------- Function -------------------------------------------
   
@@ -135,7 +140,7 @@ struct LLVMCodeGen {
     }
     void verify() const { llvm::verifyFunction(F); }
 
-    operator llvm::Function *() { return &F; }
+    llvm::Function *get() { return &F; }
 
     Value arg(size_t num) {
       assert(num < Args.size());
@@ -153,10 +158,10 @@ struct LLVMCodeGen {
     std::vector<llvm::Type*> args_type;
     args_type.reserve(args.size());
     for (auto arg : args) {
-      args_type.push_back(arg.first);
+      args_type.push_back(arg.first.get());
     }
     llvm::FunctionType *funcType =
-        llvm::FunctionType::get(ret_type, args_type, false);
+        llvm::FunctionType::get(ret_type.get(), args_type, false);
     llvm::Function *func = llvm::Function::Create(
         funcType, llvm::Function::ExternalLinkage, name, &M);
     int count = 0;
@@ -167,16 +172,35 @@ struct LLVMCodeGen {
   }
 
 
+  // --------------------------- Phi node ------------------------------------
+  struct Phi {
+    LLVMCodeGen *CG;
+    llvm::Value *V;
+
+    Phi(LLVMCodeGen *cg, llvm::Value *v) : CG(cg), V(v) {}
+    llvm::Value *get() { return V; }
+
+    operator Value() { return {CG, V}; }
+  };
+
+  Phi mkPhi(Type type, std::vector<std::pair<Value, BasicBlock>> edge_list) {
+    llvm::PHINode *phi = Builder.CreatePHI(type.get(), edge_list.size());
+    for (auto &edge : edge_list) {
+      phi->addIncoming(edge.first.get(), edge.second.get());
+    }
+    return {this, phi};
+  }
+
   // ------------- type & vals
  
-  Type mkInt() { return Type(*this, Type::int32); }
+  Type mkIntTy() { return Type(*this, Type::int32); }
   Value mkInt(int val) { return {this, Builder.getInt32(val)}; }
-  Type mkFloat() { return Type(*this, Type::float32); }
-  Type mkDouble() { return Type(*this, Type::float64); }
+  Type mkFloatTy() { return Type(*this, Type::float32); }
+  Type mkDoubleTy() { return Type(*this, Type::float64); }
 
   //-------------------- Ops
 
-  void mkRet(Value val) { Builder.CreateRet(val); }
+  void mkRet(Value val) { Builder.CreateRet(val.get()); }
 };
 
 static llvm::LLVMContext &ContextRef = llvm::getGlobalContext();
@@ -186,16 +210,37 @@ int main(int argc, char *argv[]) {
   static llvm::IRBuilder<> BuilderObj(ContextRef);
   LLVMCodeGen cg(ContextRef, *ModuleOb, BuilderObj);
 
-  auto gvar = cg.mkGlobalVar("x", cg.mkFloat());
+  auto gvar = cg.mkGlobalVar("x", cg.mkFloatTy());
 
-  auto f = cg.mkFunction("foo", cg.mkInt(),
-                         {{cg.mkInt(), "a"}, {cg.mkFloat(), "b"}});
+  auto f = cg.mkFunction("foo", cg.mkIntTy(),
+                         {{cg.mkIntTy(), "a"}, {cg.mkFloatTy(), "b"}});
   auto entry = f.mkBasicBlock("entry");
   entry.set();
 
+#if 0
   auto constant = cg.mkInt(16);
   auto val      = constant * f.arg(0);
   cg.mkRet(val);
+#endif
+
+  auto val = cg.mkInt(100);
+  auto cmp = f.arg(0) < val;
+  auto cnd = cmp != cg.mkInt(0);
+
+  auto thenBB = f.mkBasicBlock("then"); 
+  auto elseBB = f.mkBasicBlock("else");
+  auto mergeBB = f.mkBasicBlock("cont");
+
+  thenBB.set();
+  auto then_val = f.arg(0) + cg.mkInt(1);
+  elseBB.set();
+  auto else_val = f.arg(1) + cg.mkInt(2);
+  mergeBB.set();
+  auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
+  cg.mkRet(phi);
+
+  entry.set();
+  cnd.mkIfThenElse(thenBB, elseBB, mergeBB);
 
   f.verify();
 
