@@ -40,11 +40,24 @@ struct LLVMCodeGen {
         assert(0 && "Must not happen");
       }
     }
+
+    size_t size() const {
+      switch (TypeKind) {
+      case int32:
+        return 4;
+      case float32:
+      case float64:
+        return 8;
+      default:
+        assert(0 && "Must not happen");
+      }
+    }
   };
 
   Type mkInt() const { return Type(Builder, Type::int32); }
   Type mkFloat() const { return Type(Builder, Type::float32); }
   Type mkDouble() const { return Type(Builder, Type::float64); }
+
 
   // --------------------- Global Variable -----------------------------------
   struct GlobalVar {
@@ -54,11 +67,13 @@ struct LLVMCodeGen {
         : Builder(builder), Var(var) {}
   };
 
-#if 0
-  GlobalVar mkGlobalVar(std::string name, ) {
-    M->getOrInsertGlobal(
+  GlobalVar mkGlobalVar(std::string name, Type type) {
+    M.getOrInsertGlobal(name, type);
+    llvm::GlobalVariable *gvar = M.getNamedGlobal(name);
+    gvar->setLinkage(llvm::GlobalValue::CommonLinkage);
+    gvar->setAlignment(type.size());
+    return GlobalVar{Builder, *gvar};
   }
-#endif
 
   //---------------------- Function -------------------------------------------
   
@@ -104,8 +119,10 @@ static llvm::Module *ModuleOb = new llvm::Module("my compiler", ContextRef);
 int main(int argc, char *argv[]) {
   static llvm::IRBuilder<> BuilderObj(ContextRef);
   LLVMCodeGen cg(ContextRef, *ModuleOb, BuilderObj);
-  auto f = cg.mkFunction("foo", cg.mkInt());
 
+  auto gvar = cg.mkGlobalVar("x", cg.mkFloat());
+
+  auto f = cg.mkFunction("foo", cg.mkInt());
   auto entry = cg.mkBasicBlock(f, "entry");
   entry.set();
   f.verify();
