@@ -223,12 +223,12 @@ int main(int argc, char *argv[]) {
   auto f = cg.mkFunction("foo", cg.mkIntTy(),
                          {{cg.mkIntTy(), "a"}, {cg.mkFloatTy(), "b"}});
 
-  auto entry = f.mkBasicBlock("entry");
+  auto entryBB = f.mkBasicBlock("entry");
   auto thenBB = f.mkBasicBlock("then");
   auto elseBB = f.mkBasicBlock("else");
   auto mergeBB = f.mkBasicBlock("cont");
 
-  entry.set();
+  entryBB.set();
   auto val = cg.mkInt(100);
   auto cmp = f.arg(0) < val;
   auto cnd = cmp != cg.mkInt(0);
