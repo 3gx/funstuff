@@ -44,8 +44,8 @@ struct LLVMCodeGen {
     size_t size() const {
       switch (TypeKind) {
       case int32:
-        return 4;
       case float32:
+        return 4;
       case float64:
         return 8;
       default:
