@@ -15,18 +15,43 @@ struct LLVMCodeGen {
               llvm::IRBuilder<> &builder)
       : Context(context), M(m), Builder(builder) {}
   void dump() const { M.dump(); }
+
+  struct Boolean {
+    LLVMCodeGen *CG;
+    llvm::Value *V;
+
+    Boolean(LLVMCodeGen *cg, llvm::Value *value) : CG(cg), V(value) {}
+
+    operator llvm::Value *() { return V; }
+
+    void mkIfThenElse(llvm::BasicBlock *thenBB, llvm::BasicBlock *elseBB,
+                      llvm::BasicBlock *mergeBB) {
+      CG->Builder.CreateCondBr(V, thenBB, elseBB);
+      CG->Builder.SetInsertPoint(thenBB);
+      CG->Builder.CreateBr(mergeBB);
+      CG->Builder.SetInsertPoint(elseBB);
+      CG->Builder.CreateBr(mergeBB);
+    }
+  };
   
   // -----------------------  Value -------------------------------------------
   struct Value {
-    LLVMCodeGen &CG;
-    llvm::Value &V;
+    LLVMCodeGen *CG;
+    llvm::Value *V;
 
-    Value(LLVMCodeGen &cg, llvm::Value &value) : CG(cg), V(value) {}
+    Value(LLVMCodeGen *cg, llvm::Value *value) : CG(cg), V(value) {}
 
-    operator llvm::Value *() { return &V; }
+    operator llvm::Value *() { return V; }
 
-    Value operator*(Value R) const {
-      return Value{CG, *CG.Builder.CreateMul(&V, R, "mul")};
+    Value operator*(Value R) {
+      return {CG, CG->Builder.CreateMul(V, R, "mul")};
+    }
+
+    Boolean operator<(llvm::Value *R) {
+      return {CG, CG->Builder.CreateICmpULT(V, R, "lt")};
+    }
+    Boolean operator!=(llvm::Value *R) {
+      return {CG, CG->Builder.CreateICmpNE(V, R, "ne")};
     }
   };
 
@@ -35,12 +60,12 @@ struct LLVMCodeGen {
   struct Type {
     enum Kind { int32, float32, float64 };
 
-    LLVMCodeGen const &CG;
+    LLVMCodeGen &CG;
     Kind TypeKind;
 
-    Type(LLVMCodeGen const &cg, Kind type_kind) : CG(cg), TypeKind(type_kind) {}
+    Type(LLVMCodeGen &cg, Kind type_kind) : CG(cg), TypeKind(type_kind) {}
 
-    operator llvm::Type *() const {
+    operator llvm::Type *() {
       switch (TypeKind) {
       case int32:
         return CG.Builder.getInt32Ty();
@@ -53,7 +78,7 @@ struct LLVMCodeGen {
       }
     }
 
-    size_t size() const {
+    size_t size() {
       switch (TypeKind) {
       case int32:
       case float32:
@@ -112,9 +137,9 @@ struct LLVMCodeGen {
 
     operator llvm::Function *() { return &F; }
 
-    Value arg(size_t num) const {
+    Value arg(size_t num) {
       assert(num < Args.size());
-      return Value{CG, *Args[num]};
+      return Value{&CG, Args[num]};
     }
 
     BasicBlock mkBasicBlock(std::string name) {
@@ -145,7 +170,7 @@ struct LLVMCodeGen {
   // ------------- type & vals
  
   Type mkInt() { return Type(*this, Type::int32); }
-  Value mkInt(int val) { return {*this, *Builder.getInt32(val)}; }
+  Value mkInt(int val) { return {this, Builder.getInt32(val)}; }
   Type mkFloat() { return Type(*this, Type::float32); }
   Type mkDouble() { return Type(*this, Type::float64); }
 
