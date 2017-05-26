@@ -18,16 +18,15 @@ struct LLVMCodeGen {
   
   // -----------------------  Value -------------------------------------------
   struct Value {
-    IRBuilder &Builder;
+    LLVMCodeGen &CG;
     llvm::Value &V;
 
-    Value(IRBuilder &builder, llvm::Value &value)
-        : Builder(builder), V(value) {}
+    Value(LLVMCodeGen &cg, llvm::Value &value) : CG(cg), V(value) {}
 
     operator llvm::Value *() { return &V; }
 
     Value operator*(Value R) const {
-      return Value{Builder, *Builder.CreateMul(&V, R, "mul")};
+      return Value{CG, *CG.Builder.CreateMul(&V, R, "mul")};
     }
   };
 
@@ -36,20 +35,19 @@ struct LLVMCodeGen {
   struct Type {
     enum Kind { int32, float32, float64 };
 
-    IRBuilder &Builder;
+    LLVMCodeGen const &CG;
     Kind TypeKind;
 
-    Type(IRBuilder &builder, Kind type_kind)
-        : Builder(builder), TypeKind(type_kind) {}
+    Type(LLVMCodeGen const &cg, Kind type_kind) : CG(cg), TypeKind(type_kind) {}
 
     operator llvm::Type *() const {
       switch (TypeKind) {
       case int32:
-        return Builder.getInt32Ty();
+        return CG.Builder.getInt32Ty();
       case float32:
-        return Builder.getFloatTy();
+        return CG.Builder.getFloatTy();
       case float64:
-        return Builder.getDoubleTy();
+        return CG.Builder.getDoubleTy();
       default:
         assert(0 && "Must not happen");
       }
@@ -72,10 +70,10 @@ struct LLVMCodeGen {
   // --------------------- Global Variable -----------------------------------
   
   struct GlobalVar {
-    IRBuilder &Builder;
+    LLVMCodeGen &CG;
     llvm::GlobalVariable &Var;
-    GlobalVar(IRBuilder &builder, llvm::GlobalVariable &var)
-        : Builder(builder), Var(var) {}
+    GlobalVar(LLVMCodeGen &cg, llvm::GlobalVariable &var)
+        : CG(cg), Var(var) {}
   };
 
   GlobalVar mkGlobalVar(std::string name, Type type) {
@@ -83,16 +81,16 @@ struct LLVMCodeGen {
     llvm::GlobalVariable *gvar = M.getNamedGlobal(name);
     gvar->setLinkage(llvm::GlobalValue::CommonLinkage);
     gvar->setAlignment(type.size());
-    return GlobalVar{Builder, *gvar};
+    return GlobalVar{*this, *gvar};
   }
 
   //---------------------- Function -------------------------------------------
   
   struct Function {
-    IRBuilder &Builder;
+    LLVMCodeGen &CG;
     llvm::Function &F;
     std::vector<llvm::Value*> Args;
-    Function(IRBuilder &builder, llvm::Function &f) : Builder(builder), F(f) {
+    Function(LLVMCodeGen &cg, llvm::Function &f) : CG(cg), F(f) {
       Args.reserve(16);
       for (auto &arg : F.args()) {
         Args.push_back(&arg);
@@ -104,7 +102,7 @@ struct LLVMCodeGen {
 
     Value arg(size_t num) const {
       assert(num < Args.size());
-      return Value{Builder, *Args[num]};
+      return Value{CG, *Args[num]};
     }
 
 
@@ -125,7 +123,7 @@ struct LLVMCodeGen {
     for (auto &arg : func->args()) {
       arg.setName(args[count++].second);
     }
-    return Function{Builder, *func};
+    return Function{*this, *func};
   }
 
 
@@ -133,28 +131,24 @@ struct LLVMCodeGen {
 
   struct BasicBlock {
     LLVMCodeGen &CG;
-    IRBuilder &Builder;
     llvm::BasicBlock &BB;
-    BasicBlock(LLVMCodeGen &cg, IRBuilder &builder, llvm::BasicBlock &bb)
-        : CG(cg), Builder(builder), BB(bb) {}
+    BasicBlock(LLVMCodeGen &cg, llvm::BasicBlock &bb) : CG(cg), BB(bb) {}
     operator llvm::BasicBlock *() { return &BB; }
-    void set() { Builder.SetInsertPoint(&BB); }
+    void set() { CG.Builder.SetInsertPoint(&BB); }
 
   };
 
   BasicBlock mkBasicBlock(Function &func, std::string name) {
     llvm::BasicBlock *bb = llvm::BasicBlock::Create(Context, name, func);
-    return BasicBlock{*this, Builder, *bb};
+    return BasicBlock{*this, *bb};
   }
 
   // ------------- type & vals
  
-  Type mkInt() const { return Type(Builder, Type::int32); }
-  Value mkInt(int val) const { return {Builder, *Builder.getInt32(val)}; }
-  Type mkFloat() const { return Type(Builder, Type::float32); }
-  Type mkDouble() const { return Type(Builder, Type::float64); }
-
-
+  Type mkInt() { return Type(*this, Type::int32); }
+  Value mkInt(int val) { return {*this, *Builder.getInt32(val)}; }
+  Type mkFloat() { return Type(*this, Type::float32); }
+  Type mkDouble() { return Type(*this, Type::float64); }
 
   //-------------------- Ops
 
