@@ -155,7 +155,7 @@ struct LLVMCodeGen {
         Args.push_back(&arg);
       }
     }
-    void verify() const { llvm::verifyFunction(*F); }
+    bool verify() const { return llvm::verifyFunction(*F); }
     size_t n_args() const { return Args.size(); }
 
     llvm::Function *get() { return F; }
