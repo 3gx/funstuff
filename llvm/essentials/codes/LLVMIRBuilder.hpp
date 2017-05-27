@@ -98,7 +98,7 @@ public:
   template <class F>
   Value mkLoop(Value begin, Value end, Value step, F body);
   template <class F>
-  std::vector<Value> mkLoop(
+  std::vector<Value> mkNdLoop(
       std::vector<std::tuple<Value, Value, Value>> trip_count,
       F body);
 
@@ -447,7 +447,7 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
 }
 
 template <class F>
-std::vector<Value> IRBuilder::mkLoop(
+std::vector<Value> IRBuilder::mkNdLoop(
     std::vector<std::tuple<Value, Value, Value>> trip_count,
     F body) {
   assert(!trip_count.empty());

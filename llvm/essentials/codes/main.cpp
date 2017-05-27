@@ -52,13 +52,14 @@ int main(int argc, char *argv[]) {
 
   auto sum = cg.mkAlloca(cg.mkInt(0));
 #if 1
-  auto last1 = cg.mkLoop(
+  auto last1 = cg.mkNdLoop(
       {std::make_tuple(cg.mkInt(0), cg.mkInt(4), cg.mkInt(1)),
        std::make_tuple(cg.mkInt(0), cg.mkInt(5), cg.mkInt(5))},
       [&](std::vector<LLVMCodegen::Value> iv) { sum += iv[0] * iv[1]; });
 #else
-  auto last1 = cg.mkLoop({std::make_tuple(cg.mkInt(0), cg.mkInt(15), cg.mkInt(1))},
-                         [&](std::vector<LLVMCodegen::Value> iv) { sum += iv[0]; });
+  auto last1 = cg.mkNdLoop(
+      {std::make_tuple(cg.mkInt(0), cg.mkInt(15), cg.mkInt(1))},
+      [&](std::vector<LLVMCodegen::Value> iv) { sum += iv[0]; });
 #endif
 
   cg.mkRet(cmp.mkSelect(last, sum.load()));
