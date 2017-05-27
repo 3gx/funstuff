@@ -41,8 +41,11 @@ int main(int argc, char *argv[]) {
 
   auto phi = res.load();
 
-  auto f1 = [&](LLVMCodegen::Value iv) { res += iv + phi; };
-  auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
+  auto f1 = [&](LLVMCodegen::BasicBlock bb, LLVMCodegen::Value iv) { 
+    res += iv + phi; 
+    return bb;
+  };
+  auto last = cg.mkLoop(cg.mkInt(0), phi, cg.mkInt(1), f1);
   auto cmp = last != cg.mkInt(32);
 #endif
 

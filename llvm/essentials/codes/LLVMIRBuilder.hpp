@@ -469,9 +469,9 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
   condBB.set();
   auto cond = iv.load() < end;
   cond.mkIfThen([&](BasicBlock) {
-    body(iv.load());
+    auto bb = body(condBB, iv.load());
     iv += step;
-    return condBB;
+    return bb;
   });
   return iv.load();
 }
@@ -524,14 +524,16 @@ std::vector<Value> IRBuilder::mkNdLoop(
 
     using std::get;
     // emit 1D loop, which recursively calls this function
-    auto end_iv = mkLoop(get<0>(ivc), get<1>(ivc), get<2>(ivc), [&](Value iv) {
+    auto end_iv = mkLoop(get<0>(ivc), get<1>(ivc), get<2>(ivc),
+                         [&](BasicBlock bb, Value iv) {
 
-      //store currend iv
-      ivs.push_back(iv);
+                           //store currend iv
+                           ivs.push_back(iv);
 
-      // call itself
-      impl();
-    });
+                           // call itself
+                           impl();
+                           return bb;
+                         });
 
     end_ivs.push_back(end_iv);
     end_bbs.push_back(getCurrentBasicBlock());
