@@ -356,8 +356,9 @@ int main(int argc, char *argv[]) {
 
 
 
-  f.verify();
-  cg.verifyModule();
+  assert(!f.verify());
+  assert(!f1.verify());
+  assert(!cg.verifyModule());
 
   cg.dump();
   return 0;
