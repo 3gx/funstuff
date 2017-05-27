@@ -98,8 +98,9 @@ public:
   template <class F>
   Value mkLoop(Value begin, Value end, Value step, F body);
   template <class F>
-  std::vector<Value> mkLoop(std::vector<Value> begs, std::vector<Value> ends,
-                            std::vector<Value> steps, F body);
+  std::vector<Value> mkLoop(
+      std::vector<std::tuple<Value, Value, Value>> trip_count,
+      F body);
 
 }; // struct IRBuilder
 
@@ -446,20 +447,16 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
 }
 
 template <class F>
-std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs,
-                                     std::vector<Value> ends,
-                                     std::vector<Value> steps, F body) {
-  assert(!begs.empty());
+std::vector<Value> IRBuilder::mkLoop(
+    std::vector<std::tuple<Value, Value, Value>> trip_count,
+    F body) {
+  assert(!trip_count.empty());
 
-  auto const iv_count = begs.size();
-  assert(iv_count == ends.size());
-  assert(iv_count == steps.size());
+  auto const iv_count = trip_count.size();
 
   // for perf reasons, we'll be iterating from the last to the first index
   // so invert, the array to preserve logical loop structure
-  std::reverse(begs.begin(), begs.end());
-  std::reverse(ends.begin(), ends.end());
-  std::reverse(steps.begin(), steps.end());
+  std::reverse(trip_count.begin(), trip_count.end());
 
   // current, and ending induction variable lists
   std::vector<Value> ivs, end_ivs;
@@ -476,7 +473,7 @@ std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs,
   std::function<void()> impl = [&, this]() {
 
     // if we processed all indices, just emplace loop body, and return
-    if (begs.empty()) {
+    if (trip_count.empty()) {
 
       assert(ivs.size() == iv_count);
 
@@ -492,17 +489,12 @@ std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs,
 
     // otherwise, process the following index
     
-    auto beg = begs.back();
-    begs.pop_back();
+    auto ivc = trip_count.back();
+    trip_count .pop_back();
 
-    auto end  = ends.back();
-    ends.pop_back();
-
-    auto step = steps.back();
-    steps.pop_back();
-
+    using std::get;
     // emit 1D loop, which recursively calls this function
-    auto end_iv = mkLoop(beg, end, step, [&](Value iv) {
+    auto end_iv = mkLoop(get<0>(ivc), get<1>(ivc), get<2>(ivc), [&](Value iv) {
 
       //store currend iv
       ivs.push_back(iv);
