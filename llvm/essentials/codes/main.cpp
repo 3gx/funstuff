@@ -468,8 +468,8 @@ int main(int argc, char *argv[]) {
   auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
 
   auto f1 = [&](LLVMCodeGen::Value /*iv*/) {}; // auto v = iv + cg.mkInt(33); };
-  auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
-  auto cmp = last != cg.mkInt(32);
+//  auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
+//  auto cmp = last != cg.mkInt(32);
 
   auto sum = cg.mkAlloca(cg.mkInt(0));
 #if 1
