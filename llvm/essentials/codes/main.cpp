@@ -472,17 +472,17 @@ int main(int argc, char *argv[]) {
   auto cmp = last != cg.mkInt(32);
 
   auto sum = cg.mkAlloca(cg.mkInt(0));
-#if 0
-  auto last1 = cg.mkLoop({cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(3), cg.mkInt(5)},
+#if 1
+  auto last1 = cg.mkLoopV({cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(3), cg.mkInt(5)},
                          {cg.mkInt(1), cg.mkInt(1)},
-                         [&](LLVMCodeGen::Value *iv) { sum = sum + iv[0] * iv[1]; });
+                         [&](LLVMCodeGen::Value *iv) { sum += iv[0] * iv[1]; });
 #else
   auto last1 =
       cg.mkLoopV({cg.mkInt(0)}, {cg.mkInt(5)}, {cg.mkInt(1)},
                 [&](LLVMCodeGen::Value *iv) { sum += iv[0];});
 #endif
 
-  cg.mkRet(cmp.mkSelect(last, sum.load()));
+  cg.mkRet(sum.load()); //cmp.mkSelect(last, sum.load()));
   cg.dump();
 
   int error = 0;
