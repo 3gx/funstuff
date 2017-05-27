@@ -98,11 +98,6 @@ public:
   template <class F>
   Value mkLoop(Value begin, Value end, Value step, F body);
   template <class F>
-  void mkLoopImpl(std::vector<Value> begs, std::vector<Value> ends,
-                  std::vector<Value> steps, F body, std::vector<Value>& ivs,
-                  std::vector<Value>& end_ivs,
-                  std::vector<BasicBlock>& end_bbs);
-  template <class F>
   std::vector<Value> mkLoop(std::vector<Value> begs, std::vector<Value> ends,
                             std::vector<Value> steps, F body);
 
@@ -444,45 +439,8 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
 }
 
 template <class F>
-void IRBuilder::mkLoopImpl(std::vector<Value> begs, std::vector<Value> ends,
-                           std::vector<Value> steps, F body, std::vector<Value>& ivs,
-                           std::vector<Value>& end_ivs,
-                           std::vector<BasicBlock>& end_bbs) {
-  // must be matching sizes
-  assert(begs.size() == ends.size());
-  assert(begs.size() == steps.size());
-
-  // if we proceeded all indices, just emplace body of the loop, and return
-  if (begs.empty()) {
-
-    // since ivs are stored in reverse, so reverse the list :)
-    std::reverse(ivs.begin(), ivs.end());
-
-    // emplace function body
-    body(ivs);
-    return;
-  }
-
-  // otherwise, process next index in reverse order
-  auto beg  = begs.back();
-  auto end  = ends.back();
-  auto step = steps.back();
-  begs.pop_back();
-  ends.pop_back();
-  steps.pop_back();
-
-  // make 1d loop, which recursively calls this function with 1 index less
-  auto ret = mkLoop(beg, end, step, [&](Value iv) {
-    ivs.push_back(iv);
-    mkLoopImpl(begs, ends, steps, body, ivs, end_ivs, end_bbs);
-  });
-  auto bb = getCurrentBasicBlock();
-  end_ivs.push_back(ret);
-  end_bbs.push_back(bb);
-}
-
-template <class F>
-std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs, std::vector<Value> ends,
+std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs,
+                                     std::vector<Value> ends,
                                      std::vector<Value> steps, F body) {
   assert(!begs.empty());
 
@@ -498,8 +456,38 @@ std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs, std::vector<Value>
   end_ivs.reserve(begs.size());
   end_bbs.reserve(begs.size());
 
+  std::function<void()> impl = [&, this]() {
+    // if we proceeded all indices, just emplace body of the loop, and return
+    if (begs.empty()) {
+
+      // since ivs are stored in reverse, so reverse the list :)
+      std::reverse(ivs.begin(), ivs.end());
+
+      // emplace function body
+      body(ivs);
+      return;
+    }
+
+    // otherwise, process next index in reverse order
+    auto beg  = begs.back();
+    auto end  = ends.back();
+    auto step = steps.back();
+    begs.pop_back();
+    ends.pop_back();
+    steps.pop_back();
+
+    // make 1d loop, which recursively calls this function with 1 index less
+    auto ret = mkLoop(beg, end, step, [&](Value iv) {
+      ivs.push_back(iv);
+      impl();
+    });
+    auto bb = getCurrentBasicBlock();
+    end_ivs.push_back(ret);
+    end_bbs.push_back(bb);
+  };
+
   // generate the loop
-  mkLoopImpl(begs, ends, steps, body, ivs, end_ivs, end_bbs);
+  impl();
   std::reverse(end_ivs.begin(), end_ivs.end());
   end_bbs.back().set();
 
