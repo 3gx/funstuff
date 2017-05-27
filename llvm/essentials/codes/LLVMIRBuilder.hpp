@@ -38,6 +38,9 @@ public:
   llvm::Module& getModule() { return Module; }
 
   LLVMIRBuilder* operator->() { return Builder.get(); }
+  
+  void dump() const { Module.dump(); }
+  bool verifyModule() { return llvm::verifyModule(Module); }
 
   // -- method declarations
 
@@ -85,11 +88,30 @@ public:
   PhiNode mkPhiNode(Type type,
                     std::vector<std::pair<Value, BasicBlock>> edge_list);
 
+  // -- Ret
+  
+  void mkRet(Value val);
+  void mkRetVoid();
+
+  // -- Loops
+  
+  template <class F>
+  Value mkLoop(Value begin, Value end, Value step, F body);
+  template <class F>
+  void mkLoopImpl(std::vector<Value> begs, std::vector<Value> ends,
+                  std::vector<Value> steps, F body, std::vector<Value>& ivs,
+                  std::vector<Value>& end_ivs,
+                  std::vector<BasicBlock>& end_bbs);
+  template <class F>
+  std::vector<Value> mkLoop(std::vector<Value> begs, std::vector<Value> ends,
+                            std::vector<Value> steps, F body);
+
 }; // struct IRBuilder
 
 struct IRBuilderRef {
   IRBuilder& Builder;
   IRBuilderRef(IRBuilder& builder) : Builder(builder){};
+  IRBuilderRef& operator=(IRBuilderRef const&) { return *this; }
 }; // struct BRef
 
 //---------------------------- Type -------------------------------------------
@@ -390,6 +412,99 @@ PhiNode IRBuilder::mkPhiNode(
     phi->addIncoming(edge.first.get(), edge.second.get());
   }
   return {*this, phi};
+}
+  
+// -- Ret
+
+void IRBuilder::mkRet(Value val) { Builder->CreateRet(val.get()); }
+void IRBuilder::mkRetVoid() { Builder->CreateRetVoid(); }
+
+// -- Loops
+
+template <class F>
+Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
+  auto bb      = getCurrentBasicBlock();
+  auto preBB   = bb.getParent().mkBasicBlock("preBB");
+  auto loopBB  = bb.getParent().mkBasicBlock("loopBB");
+  auto afterBB = bb.getParent().mkBasicBlock("afterBB");
+  auto iv      = mkAlloca(begin);
+  mkBranch(preBB);
+
+  preBB.set();
+  auto cond = iv.load() < end;
+  cond.mkIfThenElse(loopBB, afterBB);
+
+  loopBB.set();
+  body(iv.load());
+  iv += step;
+  mkBranch(preBB);
+
+  afterBB.set();
+  return iv.load();
+}
+
+template <class F>
+void IRBuilder::mkLoopImpl(std::vector<Value> begs, std::vector<Value> ends,
+                           std::vector<Value> steps, F body, std::vector<Value>& ivs,
+                           std::vector<Value>& end_ivs,
+                           std::vector<BasicBlock>& end_bbs) {
+  // must be matching sizes
+  assert(begs.size() == ends.size());
+  assert(begs.size() == steps.size());
+
+  // if we proceeded all indices, just emplace body of the loop, and return
+  if (begs.empty()) {
+
+    // since ivs are stored in reverse, so reverse the list :)
+    std::reverse(ivs.begin(), ivs.end());
+
+    // emplace function body
+    body(ivs);
+    return;
   }
+
+  // otherwise, process next index in reverse order
+  auto beg  = begs.back();
+  auto end  = ends.back();
+  auto step = steps.back();
+  begs.pop_back();
+  ends.pop_back();
+  steps.pop_back();
+
+  // make 1d loop, which recursively calls this function with 1 index less
+  auto ret = mkLoop(beg, end, step, [&](Value iv) {
+    ivs.push_back(iv);
+    mkLoopImpl(begs, ends, steps, body, ivs, end_ivs, end_bbs);
+  });
+  auto bb = getCurrentBasicBlock();
+  end_ivs.push_back(ret);
+  end_bbs.push_back(bb);
+}
+
+template <class F>
+std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs, std::vector<Value> ends,
+                                     std::vector<Value> steps, F body) {
+  assert(!begs.empty());
+
+  // since impl iterates from the last index to the first, so invert the list
+  std::reverse(begs.begin(), begs.end());
+  std::reverse(ends.begin(), ends.end());
+  std::reverse(steps.begin(), steps.end());
+
+  // ending inductin variable list
+  std::vector<Value> ivs, end_ivs;
+  std::vector<BasicBlock> end_bbs;
+  ivs.reserve(begs.size());
+  end_ivs.reserve(begs.size());
+  end_bbs.reserve(begs.size());
+
+  // generate the loop
+  mkLoopImpl(begs, ends, steps, body, ivs, end_ivs, end_bbs);
+  std::reverse(end_ivs.begin(), end_ivs.end());
+  end_bbs.back().set();
+
+  return end_ivs;
+}
+
 
 } // namespace LLVMCodegen

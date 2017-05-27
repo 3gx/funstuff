@@ -4,6 +4,7 @@
 
 #include "LLVMIRBuilder.hpp"
 
+#if 0
 struct LLVMCodeGen {
   using IRBuilder = llvm::IRBuilder<>;
   llvm::LLVMContext &Context;
@@ -386,10 +387,10 @@ struct LLVMCodeGen {
 
     operator Value() { return {CG, Inst}; }
     llvm::BranchInst *get() { return Inst; }
-    };
+  };
 
-    BranchInst mkBranch(BasicBlock & bb) {
-      return {this, Builder.CreateBr(bb.get())};
+  BranchInst mkBranch(BasicBlock& bb) {
+    return {this, Builder.CreateBr(bb.get())};
     }
 
     bool verifyModule() { return llvm::verifyModule(M); }
@@ -401,13 +402,16 @@ LLVMCodeGen::Function LLVMCodeGen::BasicBlock::getParent() {
 LLVMCodeGen::Value LLVMCodeGen::Boolean::mkSelect(Value thenV, Value elseV) {
   return {CG, CG->Builder.CreateSelect(V, thenV.get(), elseV.get())};
 }
+#endif
 
 static llvm::LLVMContext &ContextRef = llvm::getGlobalContext();
 static llvm::Module *ModuleOb = new llvm::Module("my compiler", ContextRef);
 
 int main(int argc, char *argv[]) {
-  static llvm::IRBuilder<> BuilderObj(ContextRef);
-  LLVMCodeGen cg(ContextRef, *ModuleOb, BuilderObj);
+//  static llvm::IRBuilder<> BuilderObj(ContextRef);
+//  LLVMCodeGen cg(ContextRef, *ModuleOb, BuilderObj);
+
+  LLVMCodegen::IRBuilder cg(*ModuleOb);
 
 #if 0
   auto gvar = cg.mkGlobalVar("x", cg.mkFloatTy());
@@ -442,7 +446,7 @@ int main(int argc, char *argv[]) {
   mergeBB.set();
   auto phi = res.load();
 
-  auto f1 = [&](LLVMCodeGen::Value iv) { res += iv + phi; };
+  auto f1 = [&](LLVMCodegen::Value iv) { res += iv + phi; };
   auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
   auto cmp = last != cg.mkInt(32);
 
@@ -451,10 +455,10 @@ int main(int argc, char *argv[]) {
   auto last1 = cg.mkLoop(
       {cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(4), cg.mkInt(5)},
       {cg.mkInt(1), cg.mkInt(1)},
-      [&](std::vector<LLVMCodeGen::Value> iv) { sum += iv[0] * iv[1]; });
+      [&](std::vector<LLVMCodegen::Value> iv) { sum += iv[0] * iv[1]; });
 #else
   auto last1 = cg.mkLoop({cg.mkInt(0)}, {cg.mkInt(15)}, {cg.mkInt(1)},
-                         [&](LLVMCodeGen::Value *iv) { sum += iv[0]; });
+                         [&](LLVMCodegen::Value *iv) { sum += iv[0]; });
 #endif
 
   cg.mkRet(cmp.mkSelect(last, sum.load()));
