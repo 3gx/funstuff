@@ -298,49 +298,27 @@ struct LLVMCodeGen {
   void mkRetVoid() { Builder.CreateRetVoid(); }
 
   // ---------------- loop
-  
-  Value mkLoop(Value begin, Value end, Value step, Function loop_body) {
+
+  template <class F>
+  Value mkLoop(Value begin, Value end, Value step, F body) {
     auto bb = getCurrentBasicBlock();
-    auto preBB   = bb.getParent().mkBasicBlock("preBB");
-    auto loopBB  = bb.getParent().mkBasicBlock("loopBB");
+    auto preBB = bb.getParent().mkBasicBlock("preBB");
+    auto loopBB = bb.getParent().mkBasicBlock("loopBB");
     auto afterBB = bb.getParent().mkBasicBlock("afterBB");
+    auto iv = mkAlloca(begin);
     mkBranch(preBB);
 
     preBB.set();
-    auto iv = mkPhi(step.getType(), {{begin, bb}});
-    auto cond = Value(iv) < end;
+    auto cond = iv.load() < end;
     cond.mkIfThenElse(loopBB, afterBB);
 
     loopBB.set();
-    mkCall(loop_body, {iv});
-    auto next = step + iv;
-    iv += {next, loopBB};
+    body(iv.load());
+    iv += step;
     mkBranch(preBB);
 
     afterBB.set();
-    return iv;
-  }
-
-  template <class F> Value mkLoop(Value begin, Value end, Value step, F body) {
-    auto bb = getCurrentBasicBlock();
-    auto preBB   = bb.getParent().mkBasicBlock("preBB");
-    auto loopBB  = bb.getParent().mkBasicBlock("loopBB");
-    auto afterBB = bb.getParent().mkBasicBlock("afterBB");
-    mkBranch(preBB);
-
-    preBB.set();
-    auto iv = mkPhi(step.getType(), {{begin, bb}});
-    auto cond = Value(iv) < end;
-    cond.mkIfThenElse(loopBB, afterBB);
-
-    loopBB.set();
-    body(iv);
-    auto next = step + iv;
-    iv += {next, loopBB};
-    mkBranch(preBB);
-
-    afterBB.set();
-    return iv;
+    return iv.load();
   }
 
   template <class F>
@@ -382,7 +360,7 @@ struct LLVMCodeGen {
   }
 
   template <class F>
-  std::vector<Value> mkLoopV(std::vector<Value> begs, std::vector<Value> ends,
+  std::vector<Value> mkLoop(std::vector<Value> begs, std::vector<Value> ends,
                              std::vector<Value> steps, F body) {
     assert(!begs.empty());
 
@@ -446,43 +424,46 @@ int main(int argc, char *argv[]) {
                          {{cg.mkIntTy(), "a"}, {cg.mkIntTy(), "b"}});
 
   auto entryBB = f.mkBasicBlock("entry");
+  entryBB.set();
   auto thenBB = f.mkBasicBlock("then");
   auto elseBB = f.mkBasicBlock("else");
   auto mergeBB = f.mkBasicBlock("cont");
 
   entryBB.set();
+  auto res = cg.mkAlloca(cg.mkInt(0));
   auto val = cg.mkInt(100);
   auto cnd = f.arg(0) < val;
   cnd.mkIfThenElse(thenBB, elseBB);
 
   thenBB.set();
   auto then_val = f.arg(0) + cg.mkInt(1);
+  res.store(then_val);
   cg.mkBranch(mergeBB);
   
 
   elseBB.set();
   auto else_val = f.arg(1) + cg.mkInt(2);
+  res.store(else_val);
   cg.mkBranch(mergeBB);
 
   mergeBB.set();
-  auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
+  auto phi = res.load();
 
-  auto f1 = [&](LLVMCodeGen::Value /*iv*/) {}; // auto v = iv + cg.mkInt(33); };
-//  auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
-//  auto cmp = last != cg.mkInt(32);
+  auto f1 = [&](LLVMCodeGen::Value iv) { res += iv + phi; };
+  auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
+  auto cmp = last != cg.mkInt(32);
 
   auto sum = cg.mkAlloca(cg.mkInt(0));
 #if 1
-  auto last1 = cg.mkLoopV({cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(3), cg.mkInt(5)},
+  auto last1 = cg.mkLoop({cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(4), cg.mkInt(5)},
                          {cg.mkInt(1), cg.mkInt(1)},
                          [&](LLVMCodeGen::Value *iv) { sum += iv[0] * iv[1]; });
 #else
-  auto last1 =
-      cg.mkLoopV({cg.mkInt(0)}, {cg.mkInt(5)}, {cg.mkInt(1)},
-                [&](LLVMCodeGen::Value *iv) { sum += iv[0];});
+  auto last1 = cg.mkLoop({cg.mkInt(0)}, {cg.mkInt(15)}, {cg.mkInt(1)},
+                         [&](LLVMCodeGen::Value *iv) { sum += iv[0]; });
 #endif
 
-  cg.mkRet(sum.load()); //cmp.mkSelect(last, sum.load()));
+  cg.mkRet(cmp.mkSelect(last, sum.load()));
   cg.dump();
 
   int error = 0;
