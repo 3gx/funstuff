@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   auto gvar = cg.mkGlobalVar("x", cg.mkFloatTy());
 #endif
 
-  auto f = cg.mkFunction("foo", cg.mkIntTy(),
+  auto f = cg.mkFunction("foo", cg.mkFloatTy(),
                          {{cg.mkIntTy(), "a"}, {cg.mkIntTy(), "b"}});
 
   auto entryBB = f.mkBasicBlock("entry");
@@ -42,19 +42,23 @@ int main(int argc, char *argv[]) {
   auto phi = res.load();
 
   auto f1 = [&](LLVMCodegen::BasicBlock bb, LLVMCodegen::Value iv) { 
-    res += iv + phi; 
+    res.store(res.load() + iv + phi);
     return bb;
   };
   auto last = cg.mkLoop(cg.mkInt(0), phi, cg.mkInt(1), f1);
   auto cmp = last != cg.mkInt(32);
 #endif
 
-  auto sum = cg.mkAlloca(cg.mkInt(0));
+  auto sum = cg.mkAlloca(cg.mkFloat(0));
 #if 1
   auto last1 = cg.mkNdLoop(
       {std::make_tuple(cg.mkInt(0), cg.mkInt(4), cg.mkInt(1)),
        std::make_tuple(cg.mkInt(0), cg.mkInt(5), cg.mkInt(1))},
-      [&](std::vector<LLVMCodegen::Value> iv) { sum += iv[0] * iv[1]; });
+      [&](std::vector<LLVMCodegen::Value> iv) {
+        auto tmp = iv[0] * iv[1];
+        auto tmp1 = tmp.castTo(cg.mkFloatTy());
+        sum.store(sum.load() + tmp1);
+      });
 #else
   auto last1 = cg.mkNdLoop(
       {std::make_tuple(cg.mkInt(0), cg.mkInt(15), cg.mkInt(1))},
@@ -70,7 +74,7 @@ int main(int argc, char *argv[]) {
 
   bb2.set();
 
-  cg.mkRet(cmp.mkSelect(last, sum.load()));
+  cg.mkRet(sum.load()); //cmp.mkSelect(last, sum.load()));
   cg.dump();
 
   int error = 0;

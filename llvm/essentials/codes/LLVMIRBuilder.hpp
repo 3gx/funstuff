@@ -58,6 +58,8 @@ public:
   // -- Value
 
   Value mkInt(int);
+  Value mkFloat(float);
+  Value mkDouble(double);
 
   // -- Alloca
  
@@ -135,6 +137,8 @@ struct Type : IRBuilderRef {
     }
   }
 
+  Kind getTypeKind() const { return TypeKind; }
+
   llvm::Type* get() {
     switch (TypeKind) {
     case int32:
@@ -160,6 +164,8 @@ struct Type : IRBuilderRef {
     }
     return 0;
   }
+
+  bool operator==(Type const& other) { return TypeKind == other.TypeKind; }
 }; // struct Type
   
 //--------------------- Basic Block -------------------------------------------
@@ -212,14 +218,63 @@ struct Value : IRBuilderRef {
     return {Builder, Builder->CreateMul(this->get(), R.get(), "mul")};
   }
   Value operator+(Value R) {
-    return {Builder, Builder->CreateAdd(this->get(), R.get(), "add")};
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateAdd(this->get(), R.get(), "add")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFAdd(this->get(), R.get(), "fadd")};
+      default:
+        assert(0 && "Must not happen");
+    };
   }
 
   Boolean operator<(Value R) {
-    return {Builder, Builder->CreateICmpULT(this->get(), R.get(), "lt")};
+    return {Builder, Builder->CreateICmpSLT(this->get(), R.get(), "lt")};
   }
   Boolean operator!=(Value R) {
     return {Builder, Builder->CreateICmpNE(this->get(), R.get(), "ne")};
+  }
+
+  Value castTo(Type type) {
+    if (this->getType().getTypeKind() == Type::int32)
+    {
+      switch (type.getTypeKind()) {
+      case Type::int32: 
+        return *this;
+      case Type::float32:
+        return {Builder, Builder->CreateSIToFP(this->get(),
+                                               Builder.mkFloatTy().get())};
+      case Type::float64:
+        return {Builder, Builder->CreateSIToFP(this->get(),
+                                               Builder.mkDoubleTy().get())};
+      };
+    } else if (this->getType().getTypeKind() == Type::float32) {
+      switch (type.getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateFPToSI(this->get(),
+                                               Builder.mkIntTy().get())};
+      case Type::float32:
+        return *this;
+      case Type::float64:
+        return {Builder, Builder->CreateFPCast(this->get(),
+                                               Builder.mkDoubleTy().get())};
+      };
+    } else if (this->getType().getTypeKind() == Type::float64) {
+      switch (type.getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateFPToSI(this->get(),
+                                               Builder.mkIntTy().get())};
+      case Type::float32:
+        return {Builder, Builder->CreateFPCast(this->get(),
+                                               Builder.mkFloatTy().get())};
+      case Type::float64:
+        return *this;
+      };
+    } else {
+      assert(0 && "Must not happen");
+    }
   }
 }; // struct Value
 Value Boolean::mkSelect(Value thenV, Value elseV) {
@@ -248,15 +303,6 @@ public:
     return {Builder, Builder->CreateLoad(V)};
   }
   void store(Value v) { Builder->CreateStore(v.get(), V); }
-
-  Alloca& operator*=(Value R) {
-    store(load() * R);
-    return *this;
-  }
-  Alloca& operator+=(Value R) {
-    store(load() + R);
-    return *this;
-  }
 }; // struct Alloca
 
 //---------------------- Function -------------------------------------------
@@ -374,8 +420,15 @@ void Boolean::mkIfThen(Then thenF)
 // -- Value 
 
 Value IRBuilder::mkInt(int val) {
-  return {*this, Builder->getInt32(val)}; }
-  
+  return {*this, Builder->getInt32(val)};
+}
+Value IRBuilder::mkFloat(float val) {
+  return {*this, llvm::ConstantFP::get(llvm::Type::getFloatTy(getContext()), val)};
+}
+Value IRBuilder::mkDouble(double val) {
+  return {*this, llvm::ConstantFP::get(llvm::Type::getDoubleTy(getContext()), val)};
+}
+
 // -- Alloca
   
 Alloca IRBuilder::mkAlloca(Type type) {
@@ -470,7 +523,7 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
   auto cond = iv.load() < end;
   cond.mkIfThen([&](BasicBlock) {
     auto bb = body(condBB, iv.load());
-    iv += step;
+    iv.store(iv.load() + step);
     return bb;
   });
   return iv.load();
