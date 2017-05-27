@@ -418,22 +418,29 @@ void IRBuilder::mkRetVoid() { Builder->CreateRetVoid(); }
 
 template <class F>
 Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
-  auto bb      = getCurrentBasicBlock();
-  auto preBB   = bb.getParent().mkBasicBlock("preBB");
-  auto loopBB  = bb.getParent().mkBasicBlock("loopBB");
+  auto bb = getCurrentBasicBlock();
+
+  // create basic blocks for a loop structure
+  auto condBB  = bb.getParent().mkBasicBlock("condBB");
+  auto bodyBB  = bb.getParent().mkBasicBlock("boduyBB");
   auto afterBB = bb.getParent().mkBasicBlock("afterBB");
-  auto iv      = mkAlloca(begin);
-  mkBranch(preBB);
 
-  preBB.set();
+  // initialize induction variable to init value
+  auto iv = mkAlloca(begin);
+  mkBranch(condBB);
+
+  // verify condition
+  condBB.set();
   auto cond = iv.load() < end;
-  cond.mkIfThenElse(loopBB, afterBB);
+  cond.mkIfThenElse(bodyBB, afterBB);
 
-  loopBB.set();
+  // place loop body
+  bodyBB.set();
   body(iv.load());
   iv += step;
-  mkBranch(preBB);
+  mkBranch(condBB);
 
+  // finalize loop
   afterBB.set();
   return iv.load();
 }
@@ -444,46 +451,68 @@ std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs,
                                      std::vector<Value> steps, F body) {
   assert(!begs.empty());
 
-  // since impl iterates from the last index to the first, so invert the list
+  auto const iv_count = begs.size();
+  assert(iv_count == ends.size());
+  assert(iv_count == steps.size());
+
+  // for perf reasons, we'll be iterating from the last to the first index
+  // so invert, the array to preserve logical loop structure
   std::reverse(begs.begin(), begs.end());
   std::reverse(ends.begin(), ends.end());
   std::reverse(steps.begin(), steps.end());
 
-  // ending inductin variable list
+  // current, and ending induction variable lists
   std::vector<Value> ivs, end_ivs;
-  std::vector<BasicBlock> end_bbs;
-  ivs.reserve(begs.size());
-  end_ivs.reserve(begs.size());
-  end_bbs.reserve(begs.size());
 
+  // basic block list for each loop
+  std::vector<BasicBlock> end_bbs;
+
+  // reserve storage
+  ivs.reserve(iv_count);
+  end_ivs.reserve(iv_count);
+  end_bbs.reserve(iv_count);
+
+  // recursive ND loop implementation
   std::function<void()> impl = [&, this]() {
-    // if we proceeded all indices, just emplace body of the loop, and return
+
+    // if we processed all indices, just emplace loop body, and return
     if (begs.empty()) {
 
-      // since ivs are stored in reverse, so reverse the list :)
+      assert(ivs.size() == iv_count);
+
+      // since ivs are stored in reverse order, so reverse the vector :)
       std::reverse(ivs.begin(), ivs.end());
 
       // emplace function body
       body(ivs);
+
+      // done!
       return;
     }
 
-    // otherwise, process next index in reverse order
-    auto beg  = begs.back();
-    auto end  = ends.back();
-    auto step = steps.back();
+    // otherwise, process the following index
+    
+    auto beg = begs.back();
     begs.pop_back();
+
+    auto end  = ends.back();
     ends.pop_back();
+
+    auto step = steps.back();
     steps.pop_back();
 
-    // make 1d loop, which recursively calls this function with 1 index less
-    auto ret = mkLoop(beg, end, step, [&](Value iv) {
+    // emit 1D loop, which recursively calls this function
+    auto end_iv = mkLoop(beg, end, step, [&](Value iv) {
+
+      //store currend iv
       ivs.push_back(iv);
+
+      // call itself
       impl();
     });
-    auto bb = getCurrentBasicBlock();
-    end_ivs.push_back(ret);
-    end_bbs.push_back(bb);
+
+    end_ivs.push_back(end_iv);
+    end_bbs.push_back(getCurrentBasicBlock());
   };
 
   // generate the loop
@@ -491,6 +520,9 @@ std::vector<Value> IRBuilder::mkLoop(std::vector<Value> begs,
   std::reverse(end_ivs.begin(), end_ivs.end());
   end_bbs.back().set();
 
+  assert(ivs.size() == iv_count);
+  assert(end_ivs.size() == ivs.size());
+  assert(end_bbs.size() == ivs.size());
   return end_ivs;
 }
 
