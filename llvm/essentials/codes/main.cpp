@@ -112,8 +112,6 @@ struct LLVMCodeGen {
 
 
     llvm::Value *get() { return V; }
-    void set(llvm::Value *v) {
-    }
 
     Value operator*(Value R) {
       return {CG, CG->Builder.CreateMul(V, R.get(), "mul")};
@@ -130,6 +128,27 @@ struct LLVMCodeGen {
     }
   };
 
+
+  struct AllocaValue {
+    LLVMCodeGen *CG;
+    llvm::Value *V;
+
+    explicit AllocaValue(Value v, void*) : CG(v.CG) {
+      V = CG->Builder.CreateAlloca(v.get()->getType());
+      store(v);
+    }
+
+    Value load() {
+      auto v = CG->Builder.CreateLoad(V);
+      return {CG, v};
+    }
+    void store(Value v) { CG->Builder.CreateStore(v.get(), V); }
+
+    AllocaValue& operator*=(Value R) { store(load() * R); return *this; }
+    AllocaValue& operator+=(Value R) { store(load() + R); return *this; }
+  };
+
+  AllocaValue mkAlloca(Value v) { return AllocaValue(v, nullptr); }
 
 #if 0
   // --------------------- Global Variable -----------------------------------
@@ -172,6 +191,7 @@ struct LLVMCodeGen {
 
     llvm::Function *get() { return F; }
     std::string const& getErrorString() { return ErrorString;}
+    std::string getName() const { return std::string(F->getName().data()); }
 
     Value arg(size_t num) {
       assert(num < Args.size());
@@ -451,7 +471,7 @@ int main(int argc, char *argv[]) {
   auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
   auto cmp = last != cg.mkInt(32);
 
-  auto sum = cg.mkInt(0);
+  auto sum = cg.mkAlloca(cg.mkInt(0));
 #if 0
   auto last1 = cg.mkLoop({cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(3), cg.mkInt(5)},
                          {cg.mkInt(1), cg.mkInt(1)},
@@ -459,17 +479,23 @@ int main(int argc, char *argv[]) {
 #else
   auto last1 =
       cg.mkLoopV({cg.mkInt(0)}, {cg.mkInt(5)}, {cg.mkInt(1)},
-                [&](LLVMCodeGen::Value *iv) { sum = sum + iv[0];});
+                [&](LLVMCodeGen::Value *iv) { sum += iv[0];});
 #endif
 
-  cg.mkRet(cmp.mkSelect(last, sum));
-
-  if (f.verify()) {
-    std::cerr << f.getErrorString() << std::endl;
-    exit(1);
-  }
-  assert(!cg.verifyModule());
-
+  cg.mkRet(cmp.mkSelect(last, sum.load()));
   cg.dump();
-  return 0;
+
+  int error = 0;
+  if (f.verify()) {
+    std::cerr << "\n";
+    std::cerr << "============================================================\n";
+    std::cerr << "Function <" << f.getName() << "> verification error\n";
+    std::cerr << "============================================================\n";
+    std::cerr << f.getErrorString();
+    std::cerr << "------------------------------------------------------------\n";
+    error = 1;
+  }
+//  assert(!cg.verifyModule());
+
+  return error;
 }

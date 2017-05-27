@@ -1,6 +1,6 @@
 LLVM_BIN=/usr/bin
 LLVM_MODULES=core
-LLVM_CXXFLAGS=$(shell $(LLVM_BIN)/llvm-config --cxxflags)
+LLVM_CXXFLAGS=$(shell $(LLVM_BIN)/llvm-config --cxxflags) -O0 -g
 LLVM_LDFLAGS=$(shell $(LLVM_BIN)/llvm-config --ldflags)
 LLVM_LIBS=$(shell $(LLVM_BIN)/llvm-config --libs --system-libs $(LLVM_MODULES))
 
