@@ -299,6 +299,11 @@ struct LLVMCodeGen {
   BranchInst mkBranch(BasicBlock &bb) {
     return {this, Builder.CreateBr(bb.get())};
   }
+
+  bool verifyModule() {
+    return llvm::verifyModule(M);
+  }
+
 };
 LLVMCodeGen::Function LLVMCodeGen::BasicBlock::getParent() {
   return {CG, BB->getParent()};
@@ -352,6 +357,7 @@ int main(int argc, char *argv[]) {
 
 
   f.verify();
+  cg.verifyModule();
 
   cg.dump();
   return 0;
