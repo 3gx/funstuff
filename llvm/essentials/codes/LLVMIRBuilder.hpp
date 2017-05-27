@@ -436,7 +436,7 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
 
   // create basic blocks for a loop structure
   auto condBB  = bb.getParent().mkBasicBlock("condBB");
-  auto bodyBB  = bb.getParent().mkBasicBlock("boduyBB");
+  auto bodyBB  = bb.getParent().mkBasicBlock("bodyBB");
   auto afterBB = bb.getParent().mkBasicBlock("afterBB");
 
   // initialize induction variable to init value
