@@ -1,0 +1,11 @@
+---
+BasedOnStyle: llvm
+AlignConsecutiveAssignments: true
+#AlignConsecutiveDeclarations: true
+AlignAfterOpenBracket: Align
+AlignEscapedNewlinesLeft: true
+AlignOperands: true
+AlignTrailingComments: true
+#DerivePointerAlignment: true
+PointerAlignment: Left
+ColumnLimit: 0
