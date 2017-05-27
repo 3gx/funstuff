@@ -188,9 +188,11 @@ struct Boolean : IRBuilderRef {
 
   llvm::Value* get() { return V; }
 
-  void mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB) {
-    Builder->CreateCondBr(V, thenBB.get(), elseBB.get());
-  }
+  template<class Then, class Else>
+  void mkIfThenElse(Then thenF, Else elseF);
+
+  template <class Then>
+  void mkIfThen(Then thenF);
 
   // -- declaration
   Value mkSelect(Value thenV, Value elseV);
@@ -350,14 +352,36 @@ BasicBlock IRBuilder::mkBasicBlock(std::string name) {
   return f.mkBasicBlock(name);
 }
 
+template <class Then, class Else>
+void Boolean::mkIfThenElse(Then thenF, Else elseF) {
+  auto thenBB = Builder.mkBasicBlock("then");
+  auto elseBB = Builder.mkBasicBlock("else");
+  auto contBB = Builder.mkBasicBlock("cont");
+  Builder->CreateCondBr(V, thenBB.get(), elseBB.get());
+  thenBB.set();
+  thenF(contBB);
+  elseBB.set();
+  elseF(contBB);
+  contBB.set();
+}
+
+template <class Then>
+void Boolean::mkIfThen(Then thenF)
+{
+  return mkIfThenElse(thenF, [&](BasicBlock bb) { Builder.mkBranch(bb); });
+}
+
 // -- Value 
 
-Value IRBuilder::mkInt(int val) { return {*this, Builder->getInt32(val)}; }
+Value IRBuilder::mkInt(int val) {
+  return {*this, Builder->getInt32(val)}; }
   
 // -- Alloca
   
-Alloca IRBuilder::mkAlloca(Type type) { return Alloca(type); }
-Alloca IRBuilder::mkAlloca(Value value) { return Alloca(value); }
+Alloca IRBuilder::mkAlloca(Type type) {
+  return Alloca(type); }
+Alloca IRBuilder::mkAlloca(Value value) {
+  return Alloca(value); }
 
 // -- Function
 
@@ -436,8 +460,6 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
 
   // create basic blocks for a loop structure
   auto condBB  = bb.getParent().mkBasicBlock("condBB");
-  auto bodyBB  = bb.getParent().mkBasicBlock("bodyBB");
-  auto afterBB = bb.getParent().mkBasicBlock("afterBB");
 
   // initialize induction variable to init value
   auto iv = mkAlloca(begin);
@@ -446,16 +468,11 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
   // verify condition
   condBB.set();
   auto cond = iv.load() < end;
-  cond.mkIfThenElse(bodyBB, afterBB);
-
-  // place loop body
-  bodyBB.set();
-  body(iv.load());
-  iv += step;
-  mkBranch(condBB);
-
-  // finalize loop
-  afterBB.set();
+  cond.mkIfThen([&](BasicBlock) {
+    body(iv.load());
+    iv += step;
+    mkBranch(condBB);
+  });
   return iv.load();
 }
 
@@ -503,7 +520,7 @@ std::vector<Value> IRBuilder::mkNdLoop(
     // otherwise, process the following index
     
     auto ivc = trip_count.back();
-    trip_count .pop_back();
+    trip_count.pop_back();
 
     using std::get;
     // emit 1D loop, which recursively calls this function
@@ -530,6 +547,5 @@ std::vector<Value> IRBuilder::mkNdLoop(
   assert(end_bbs.size() == ivs.size());
   return end_ivs;
 }
-
 
 } // namespace LLVMCodegen
