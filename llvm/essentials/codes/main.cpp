@@ -62,6 +62,15 @@ int main(int argc, char *argv[]) {
       [&](std::vector<LLVMCodegen::Value> iv) { sum += iv[0]; });
 #endif
 
+  auto bb1 = cg.mkBasicBlock("BBX1");
+  auto bb2 = cg.mkBasicBlock("BBX2");
+  cg.mkBranch(bb1);
+
+  bb1.set();
+  cg.mkBranch(bb2);
+
+  bb2.set();
+
   cg.mkRet(cmp.mkSelect(last, sum.load()));
   cg.dump();
 

@@ -53,6 +53,7 @@ public:
   // -- BasicBlock
 
   BasicBlock getCurrentBasicBlock();
+  BasicBlock mkBasicBlock(std::string);
 
   // -- Value
 
@@ -336,6 +337,11 @@ Type IRBuilder::mkDoubleTy() { return {*this, Type::float64}; }
 
 BasicBlock IRBuilder::getCurrentBasicBlock() {
   return {*this, Builder->GetInsertBlock()};
+}
+BasicBlock IRBuilder::mkBasicBlock(std::string name) {
+  auto bb = getCurrentBasicBlock();
+  auto f =  bb.getParent();
+  return f.mkBasicBlock(name);
 }
 
 // -- Value 
