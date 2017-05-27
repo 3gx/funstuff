@@ -6,8 +6,10 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Support/raw_ostream.h>
 #include <vector>
 #include <string>
+#include <iostream>
 
 struct LLVMCodeGen {
   using IRBuilder = llvm::IRBuilder<>;
@@ -85,6 +87,7 @@ struct LLVMCodeGen {
   // -----------------------  Boolean -------------------------------------------
 
   struct Value;
+
   struct Boolean {
     LLVMCodeGen *CG;
     llvm::Value *V;
@@ -109,6 +112,8 @@ struct LLVMCodeGen {
 
 
     llvm::Value *get() { return V; }
+    void set(llvm::Value *v) {
+    }
 
     Value operator*(Value R) {
       return {CG, CG->Builder.CreateMul(V, R.get(), "mul")};
@@ -157,10 +162,16 @@ struct LLVMCodeGen {
         Args.push_back(&arg);
       }
     }
-    bool verify() const { return llvm::verifyFunction(*F); }
+    std::string ErrorString;
+    bool verify() { 
+      ErrorString.clear();
+      llvm::raw_string_ostream os(ErrorString);
+      return llvm::verifyFunction(*F, &os); 
+    }
     size_t n_args() const { return Args.size(); }
 
     llvm::Function *get() { return F; }
+    std::string const& getErrorString() { return ErrorString;}
 
     Value arg(size_t num) {
       assert(num < Args.size());
@@ -267,6 +278,7 @@ struct LLVMCodeGen {
   void mkRetVoid() { Builder.CreateRetVoid(); }
 
   // ---------------- loop
+  
   Value mkLoop(Value begin, Value end, Value step, Function loop_body) {
     auto bb = getCurrentBasicBlock();
     auto preBB   = bb.getParent().mkBasicBlock("preBB");
@@ -288,7 +300,93 @@ struct LLVMCodeGen {
     afterBB.set();
     return iv;
   }
-  
+
+  template <class F> Value mkLoop(Value begin, Value end, Value step, F body) {
+    auto bb = getCurrentBasicBlock();
+    auto preBB   = bb.getParent().mkBasicBlock("preBB");
+    auto loopBB  = bb.getParent().mkBasicBlock("loopBB");
+    auto afterBB = bb.getParent().mkBasicBlock("afterBB");
+    mkBranch(preBB);
+
+    preBB.set();
+    auto iv = mkPhi(step.getType(), {{begin, bb}});
+    auto cond = Value(iv) < end;
+    cond.mkIfThenElse(loopBB, afterBB);
+
+    loopBB.set();
+    body(iv);
+    auto next = step + iv;
+    iv += {next, loopBB};
+    mkBranch(preBB);
+
+    afterBB.set();
+    return iv;
+  }
+
+  template <class F>
+  void mkLoopImpl(std::vector<Value> begs, std::vector<Value> ends,
+                   std::vector<Value> steps, F body, std::vector<Value> &ivs,
+                   std::vector<Value> &end_ivs,
+                   std::vector<BasicBlock> &end_bbs) {
+    // must be matching sizes
+    assert(begs.size() == ends.size());
+    assert(begs.size() == steps.size());
+
+    // if we proceeded all indices, just emplace body of the loop, and return
+    if (begs.empty()) {
+
+      // since ivs are stored in reverse, so reverse the list :)
+      std::reverse(ivs.begin(), ivs.end());
+      
+      // emplace function body
+      body(ivs.data());
+      return;
+    }
+
+    // otherwise, process next index in reverse order
+    auto beg = begs.back();
+    auto end = ends.back();
+    auto step = steps.back();
+    begs.pop_back();
+    ends.pop_back();
+    steps.pop_back();
+
+    // make 1d loop, which recursively calls this function with 1 index less
+    auto ret = mkLoop(beg, end, step, [&](Value iv) {
+      ivs.push_back(iv);
+      mkLoopImpl(begs, ends, steps, body, ivs, end_ivs, end_bbs);
+    });
+    auto bb = getCurrentBasicBlock();
+    end_ivs.push_back(ret);
+    end_bbs.push_back(bb);
+  }
+
+  template <class F>
+  std::vector<Value> mkLoopV(std::vector<Value> begs, std::vector<Value> ends,
+                             std::vector<Value> steps, F body) {
+    assert(!begs.empty());
+
+
+    // since impl iterates from the last index to the first, so invert the list
+    std::reverse(begs.begin(), begs.end());
+    std::reverse(ends.begin(), ends.end());
+    std::reverse(steps.begin(), steps.end());
+    
+    // ending inductin variable list
+    std::vector<Value> ivs, end_ivs;
+    std::vector<BasicBlock> end_bbs;
+    ivs.reserve(begs.size());
+    end_ivs.reserve(begs.size());
+    end_bbs.reserve(begs.size());
+
+    // generate the loop
+    mkLoopImpl(begs, ends, steps, body, ivs, end_ivs, end_bbs);
+    std::reverse(end_ivs.begin(), end_ivs.end());
+    end_bbs.back().set();
+    
+    return end_ivs;
+  }
+
   // ---------------- branchInst
   struct BranchInst {
     LLVMCodeGen *CG;
@@ -297,15 +395,13 @@ struct LLVMCodeGen {
 
     operator Value() { return {CG, Inst}; }
     llvm::BranchInst *get() { return Inst; }
-  };
+    };
 
-  BranchInst mkBranch(BasicBlock &bb) {
-    return {this, Builder.CreateBr(bb.get())};
-  }
+    BranchInst mkBranch(BasicBlock & bb) {
+      return {this, Builder.CreateBr(bb.get())};
+    }
 
-  bool verifyModule() {
-    return llvm::verifyModule(M);
-  }
+    bool verifyModule() { return llvm::verifyModule(M); }
 
 };
 LLVMCodeGen::Function LLVMCodeGen::BasicBlock::getParent() {
@@ -351,20 +447,27 @@ int main(int argc, char *argv[]) {
   mergeBB.set();
   auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
 
-  auto f1 = cg.mkFunction("foo", {{cg.mkIntTy(), "m"}});
-  auto f1entryBB = f1.mkBasicBlock("entry");
-
+  auto f1 = [&](LLVMCodeGen::Value /*iv*/) {}; // auto v = iv + cg.mkInt(33); };
   auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
   auto cmp = last != cg.mkInt(32);
-  cg.mkRet(cmp.mkSelect(last, cg.mkInt(44)));
 
-  f1entryBB.set();
-  cg.mkRetVoid();
+  auto sum = cg.mkInt(0);
+#if 0
+  auto last1 = cg.mkLoop({cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(3), cg.mkInt(5)},
+                         {cg.mkInt(1), cg.mkInt(1)},
+                         [&](LLVMCodeGen::Value *iv) { sum = sum + iv[0] * iv[1]; });
+#else
+  auto last1 =
+      cg.mkLoopV({cg.mkInt(0)}, {cg.mkInt(5)}, {cg.mkInt(1)},
+                [&](LLVMCodeGen::Value *iv) { sum = sum + iv[0];});
+#endif
 
+  cg.mkRet(cmp.mkSelect(last, sum));
 
-
-  assert(!f.verify());
-  assert(!f1.verify());
+  if (f.verify()) {
+    std::cerr << f.getErrorString() << std::endl;
+    exit(1);
+  }
   assert(!cg.verifyModule());
 
   cg.dump();
