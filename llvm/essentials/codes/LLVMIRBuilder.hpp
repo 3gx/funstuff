@@ -359,16 +359,16 @@ void Boolean::mkIfThenElse(Then thenF, Else elseF) {
   auto contBB = Builder.mkBasicBlock("cont");
   Builder->CreateCondBr(V, thenBB.get(), elseBB.get());
   thenBB.set();
-  thenF(contBB);
+  Builder.mkBranch(thenF(contBB));
   elseBB.set();
-  elseF(contBB);
+  Builder.mkBranch(elseF(contBB));
   contBB.set();
 }
 
 template <class Then>
 void Boolean::mkIfThen(Then thenF)
 {
-  return mkIfThenElse(thenF, [&](BasicBlock bb) { Builder.mkBranch(bb); });
+  mkIfThenElse(thenF, [&](BasicBlock bb) { return bb; });
 }
 
 // -- Value 
@@ -471,7 +471,7 @@ Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
   cond.mkIfThen([&](BasicBlock) {
     body(iv.load());
     iv += step;
-    mkBranch(condBB);
+    return condBB;
   });
   return iv.load();
 }

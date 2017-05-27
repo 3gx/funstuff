@@ -23,18 +23,20 @@ int main(int argc, char *argv[]) {
   auto entryBB = f.mkBasicBlock("entry");
   entryBB.set();
 
-#if 0
+#if 1
   auto res = cg.mkAlloca(cg.mkInt(0));
   auto val = cg.mkInt(100);
   auto cnd = f.arg(0) < val;
   cnd.mkIfThenElse(
-      [&]() {
+      [&](LLVMCodegen::BasicBlock cont) {
         auto then_val = f.arg(0) + cg.mkInt(1);
         res.store(then_val);
+        return cont;
       },
-      [&]() {
+      [&](LLVMCodegen::BasicBlock cont) {
         auto else_val = f.arg(1) + cg.mkInt(2);
         res.store(else_val);
+        return cont;
       });
 
   auto phi = res.load();
@@ -45,7 +47,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   auto sum = cg.mkAlloca(cg.mkInt(0));
-#if 0
+#if 1
   auto last1 = cg.mkNdLoop(
       {std::make_tuple(cg.mkInt(0), cg.mkInt(4), cg.mkInt(1)),
        std::make_tuple(cg.mkInt(0), cg.mkInt(5), cg.mkInt(1))},
@@ -65,7 +67,7 @@ int main(int argc, char *argv[]) {
 
   bb2.set();
 
-  cg.mkRet(sum.load()); //cmp.mkSelect(last, sum.load()));
+  cg.mkRet(cmp.mkSelect(last, sum.load()));
   cg.dump();
 
   int error = 0;
