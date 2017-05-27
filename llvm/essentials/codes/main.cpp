@@ -84,6 +84,7 @@ struct LLVMCodeGen {
 
   // -----------------------  Boolean -------------------------------------------
 
+  struct Value;
   struct Boolean {
     LLVMCodeGen *CG;
     llvm::Value *V;
@@ -95,6 +96,7 @@ struct LLVMCodeGen {
     void mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB) {
       CG->Builder.CreateCondBr(V, thenBB.get(), elseBB.get());
     }
+    Value mkSelect(Value thenV, Value elseV);
   };
   
   // -----------------------  Value -------------------------------------------
@@ -308,6 +310,9 @@ struct LLVMCodeGen {
 LLVMCodeGen::Function LLVMCodeGen::BasicBlock::getParent() {
   return {CG, BB->getParent()};
 }
+LLVMCodeGen::Value LLVMCodeGen::Boolean::mkSelect(Value thenV, Value elseV) {
+  return {CG, CG->Builder.CreateSelect(V, thenV.get(), elseV.get())};
+}
 
 static llvm::LLVMContext &ContextRef = llvm::getGlobalContext();
 static llvm::Module *ModuleOb = new llvm::Module("my compiler", ContextRef);
@@ -345,11 +350,12 @@ int main(int argc, char *argv[]) {
   mergeBB.set();
   auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
 
-  auto f1 = cg.mkFunction("loop", {{cg.mkIntTy(), "m"}});
+  auto f1 = cg.mkFunction("foo", {{cg.mkIntTy(), "m"}});
   auto f1entryBB = f1.mkBasicBlock("entry");
 
   auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
-  cg.mkRet(last);
+  auto cmp = last != cg.mkInt(32);
+  cg.mkRet(cmp.mkSelect(last, cg.mkInt(44)));
 
   f1entryBB.set();
   cg.mkRetVoid();
