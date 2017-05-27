@@ -1,3 +1,7 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -68,13 +72,14 @@ struct LLVMCodeGen {
 
   //------------------- Basic Block -------------------------------------------
 
+  struct Function;
   struct BasicBlock {
     LLVMCodeGen *CG;
     llvm::BasicBlock *BB;
     BasicBlock(LLVMCodeGen *cg, llvm::BasicBlock *bb) : CG(cg), BB(bb) {}
     llvm::BasicBlock *get() { return BB; }
     void set() { CG->Builder.SetInsertPoint(BB); }
-
+    Function getParent();
   };
 
   // -----------------------  Boolean -------------------------------------------
@@ -87,15 +92,8 @@ struct LLVMCodeGen {
 
     llvm::Value *get() { return V; }
 
-    void mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB,
-                      BasicBlock mergeBB) {
-      auto bb = CG->Builder.GetInsertBlock();
+    void mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB) {
       CG->Builder.CreateCondBr(V, thenBB.get(), elseBB.get());
-      CG->Builder.SetInsertPoint(thenBB.get());
-      CG->Builder.CreateBr(mergeBB.get());
-      CG->Builder.SetInsertPoint(elseBB.get());
-      CG->Builder.CreateBr(mergeBB.get());
-      CG->Builder.SetInsertPoint(bb);
     }
   };
   
@@ -117,7 +115,7 @@ struct LLVMCodeGen {
       return {CG, CG->Builder.CreateAdd(V, R.get(), "add")};
     }
 
-    Value operator<(Value R) {
+    Boolean operator<(Value R) {
       return {CG, CG->Builder.CreateICmpULT(V, R.get(), "lt")};
     }
     Boolean operator!=(Value R) {
@@ -156,6 +154,7 @@ struct LLVMCodeGen {
       }
     }
     void verify() const { llvm::verifyFunction(*F); }
+    size_t n_args() const { return Args.size(); }
 
     llvm::Function *get() { return F; }
 
@@ -187,7 +186,43 @@ struct LLVMCodeGen {
     }
     return Function{this, func};
   }
+  Function mkFunction(std::string name,
+                      std::vector<std::pair<Type, std::string>> args = {}) {
+    std::vector<llvm::Type*> args_type;
+    args_type.reserve(args.size());
+    for (auto arg : args) {
+      args_type.push_back(arg.first.get());
+    }
+    llvm::FunctionType *funcType =
+        llvm::FunctionType::get(Builder.getVoidTy(), args_type, false);
+    llvm::Function *func = llvm::Function::Create(
+        funcType, llvm::Function::ExternalLinkage, name, &M);
+    int count = 0;
+    for (auto &arg : func->args()) {
+      arg.setName(args[count++].second);
+    }
+    return Function{this, func};
+  }
 
+  // -------------------------- Call ------------------------------------------
+  struct CallInst {
+    LLVMCodeGen *CG;
+    llvm::CallInst *Inst;
+    CallInst(LLVMCodeGen *cg, llvm::CallInst *inst) : CG(cg), Inst(inst) {}
+
+    operator Value() { return {CG, Inst}; }
+    llvm::CallInst *get() { return Inst; }
+  };
+
+  CallInst mkCall(Function &f, std::vector<Value> args) {
+    assert(args.size() == f.n_args() && "Argument count mismatch");
+    std::vector<llvm::Value*> arguments;
+    arguments.reserve(args.size());
+    for (auto &arg : args) {
+      arguments.push_back(arg.get());
+    }
+    return {this, Builder.CreateCall(f.get(), arguments)};
+  }
 
   // --------------------------- Phi node ------------------------------------
   struct Phi {
@@ -226,15 +261,44 @@ struct LLVMCodeGen {
   void mkRet(Value val) { Builder.CreateRet(val.get()); }
 
   // ---------------- loop
-  void mkLoop(Value begin, Value end, Value step, BasicBlock loopBB,
-              BasicBlock afterBB) {
+  Value mkLoop(Value begin, Value end, Value step, Function loop_body) {
     auto bb = getCurrentBasicBlock();
-    auto iv = mkPhi(step.getType(), {{begin, bb}});
-    
+    auto preBB   = bb.getParent().mkBasicBlock("preBB");
+    auto loopBB  = bb.getParent().mkBasicBlock("loopBB");
+    auto afterBB = bb.getParent().mkBasicBlock("afterBB");
 
-    bb.set();
+    preBB.set();
+    auto iv = mkPhi(step.getType(), {{begin, bb}});
+    auto cond = Value(iv) < end;
+    cond.mkIfThenElse(loopBB, afterBB);
+
+    loopBB.set();
+    mkCall(loop_body, {iv});
+    auto next = step + iv;
+    iv.addIncoming(next, loopBB);
+    mkBranch(preBB);
+
+    afterBB.set();
+    return next;
+  }
+
+  // ---------------- branchInst
+  struct BranchInst {
+    LLVMCodeGen *CG;
+    llvm::BranchInst *Inst;
+    BranchInst(LLVMCodeGen *cg, llvm::BranchInst *inst) : CG(cg), Inst(inst) {}
+
+    operator Value() { return {CG, Inst}; }
+    llvm::BranchInst *get() { return Inst; }
+  };
+
+  BranchInst mkBranch(BasicBlock &bb) {
+    return {this, Builder.CreateBr(bb.get())};
   }
 };
+LLVMCodeGen::Function LLVMCodeGen::BasicBlock::getParent() {
+  return {CG, BB->getParent()};
+}
 
 static llvm::LLVMContext &ContextRef = llvm::getGlobalContext();
 static llvm::Module *ModuleOb = new llvm::Module("my compiler", ContextRef);
@@ -246,7 +310,7 @@ int main(int argc, char *argv[]) {
   auto gvar = cg.mkGlobalVar("x", cg.mkFloatTy());
 
   auto f = cg.mkFunction("foo", cg.mkIntTy(),
-                         {{cg.mkIntTy(), "a"}, {cg.mkFloatTy(), "b"}});
+                         {{cg.mkIntTy(), "a"}, {cg.mkIntTy(), "b"}});
 
   auto entryBB = f.mkBasicBlock("entry");
   auto thenBB = f.mkBasicBlock("then");
@@ -255,19 +319,27 @@ int main(int argc, char *argv[]) {
 
   entryBB.set();
   auto val = cg.mkInt(100);
-  auto cmp = f.arg(0) < val;
-  auto cnd = cmp != cg.mkInt(0);
-  cnd.mkIfThenElse(thenBB, elseBB, mergeBB);
+  auto cnd = f.arg(0) < val;
+  cnd.mkIfThenElse(thenBB, elseBB);
 
   thenBB.set();
   auto then_val = f.arg(0) + cg.mkInt(1);
+  cg.mkBranch(mergeBB);
+  
 
   elseBB.set();
   auto else_val = f.arg(1) + cg.mkInt(2);
+  cg.mkBranch(mergeBB);
 
   mergeBB.set();
   auto phi = cg.mkPhi(cg.mkIntTy(), {{then_val, thenBB}, {else_val, elseBB}});
-  cg.mkRet(phi);
+
+  auto f1 = cg.mkFunction("loop", {{cg.mkIntTy(), "m"}});
+  auto f1entryBB = f1.mkBasicBlock("entry");
+
+  auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
+
+  cg.mkRet(last);
 
 
   f.verify();
