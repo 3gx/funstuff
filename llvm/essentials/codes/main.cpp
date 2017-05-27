@@ -2,14 +2,7 @@
 #undef NDEBUG
 #endif
 
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/Support/raw_ostream.h>
-#include <vector>
-#include <string>
-#include <iostream>
+#include "LLVMIRBuilder.hpp"
 
 struct LLVMCodeGen {
   using IRBuilder = llvm::IRBuilder<>;

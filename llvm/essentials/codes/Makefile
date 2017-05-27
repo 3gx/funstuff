@@ -22,3 +22,5 @@ $(PROG).x: $(PROG).o
  
 clean:
 	/bin/rm -f $(PROG).o $(PROG).x
+
+$(PROG).o: LLVMIRBuilder.hpp
