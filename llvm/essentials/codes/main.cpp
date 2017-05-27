@@ -238,8 +238,9 @@ struct LLVMCodeGen {
 
     operator Value() { return {CG, V}; }
 
-    void addIncoming(Value v, BasicBlock bb) {
-      V->addIncoming(v.get(), bb.get());
+    Phi &operator+=(std::pair<Value, BasicBlock> rhs) {
+      V->addIncoming(rhs.first.get(), rhs.second.get());
+      return *this;
     }
   };
 
@@ -281,13 +282,13 @@ struct LLVMCodeGen {
     loopBB.set();
     mkCall(loop_body, {iv});
     auto next = step + iv;
-    iv.addIncoming(next, loopBB);
+    iv += {next, loopBB};
     mkBranch(preBB);
 
     afterBB.set();
     return iv;
   }
-
+  
   // ---------------- branchInst
   struct BranchInst {
     LLVMCodeGen *CG;
