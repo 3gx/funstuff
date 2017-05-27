@@ -20,11 +20,13 @@ struct PhiNode;
 struct BranchInst;
 
 struct IRBuilder {
+private:
   using LLVMIRBuilder = llvm::IRBuilder<>;
 
   llvm::Module& Module;
   std::unique_ptr<LLVMIRBuilder> Builder;
 
+public:
   explicit IRBuilder(llvm::Module& module) : Module(module) {
     Builder.reset(new LLVMIRBuilder(getContext()));
   }
@@ -36,6 +38,53 @@ struct IRBuilder {
   llvm::Module& getModule() { return Module; }
 
   LLVMIRBuilder* operator->() { return Builder.get(); }
+
+  // -- method declarations
+
+  // -- Type 
+
+  Type mkIntTy();
+  Type mkFloatTy();
+  Type mkDoubleTy();
+  
+  // -- BasicBlock
+
+  BasicBlock getCurrentBasicBlock();
+
+  // -- Value
+
+  Value mkInt(int);
+
+  // -- AllocaValue
+ 
+  AllocaValue mkAlloca(Value value);
+
+  // -- Function
+
+private:
+  Function mkFunctionImpl(std::string name,
+                          std::vector<Type> ret_type,
+                          std::vector<std::pair<Type, std::string>> args);
+
+public:
+  Function mkVoidFunction(std::string name,
+                          std::vector<std::pair<Type, std::string>> args = {});
+  Function mkFunction(std::string name, Type ret_type,
+                      std::vector<std::pair<Type, std::string>> args = {});
+
+  // -- CallInst
+
+  CallInst mkCall(Function fun, std::vector<Value> args);
+  
+  // -- BranchInst
+  
+  BranchInst mkBranch(BasicBlock);
+  
+  // -- PhiNode
+
+  PhiNode mkPhiNode(Type type,
+                    std::vector<std::pair<Value, BasicBlock>> edge_list);
+
 }; // struct IRBuilder
 
 struct IRBuilderRef {
@@ -158,6 +207,8 @@ Value Boolean::mkSelect(Value thenV, Value elseV) {
 // ------------------------ AllocaValue ---------------------------------------
 
 struct AllocaValue : IRBuilderRef {
+  friend AllocaValue IRBuilder::mkAlloca(Value);
+private:
   llvm::Value* V;
 
   explicit AllocaValue(Value v) : IRBuilderRef(v.Builder) {
@@ -165,6 +216,7 @@ struct AllocaValue : IRBuilderRef {
     store(v);
   }
 
+public:
   Value load() {
     return {Builder, Builder->CreateLoad(V)};
   }
@@ -227,6 +279,16 @@ struct CallInst : IRBuilderRef {
   llvm::CallInst* get() { return Inst; }
 }; // struct CallInst
 
+// -------------------------- BranchInst ------------------------------------
+
+struct BranchInst : IRBuilderRef {
+  llvm::BranchInst* Inst;
+  BranchInst(IRBuilder& ref, llvm::BranchInst* inst) : IRBuilderRef(ref),
+                                                       Inst(inst) {}
+  explicit operator Value() { return {Builder, Inst}; }
+  llvm::BranchInst* get() { return Inst; }
+};
+
 // ------------------------------- PhiNode ------------------------------------
 
 struct PhiNode : IRBuilderRef {
@@ -243,14 +305,91 @@ struct PhiNode : IRBuilderRef {
   }
 };
 
-// -------------------------- BranchInst ------------------------------------
 
-struct BranchInst : IRBuilderRef {
-  llvm::BranchInst* Inst;
-  BranchInst(IRBuilder& ref, llvm::BranchInst* inst) : IRBuilderRef(ref),
-                                                       Inst(inst) {}
-  explicit operator Value() { return {Builder, Inst}; }
-  llvm::BranchInst* get() { return Inst; }
-};
+// -- method definitions
+  
+// -- Type 
+
+Type IRBuilder::mkIntTy() { return {*this, Type::int32}; }
+Type IRBuilder::mkFloatTy() { return {*this, Type::float32}; }
+Type IRBuilder::mkDoubleTy() { return {*this, Type::float64}; }
+
+// -- BasicBlock 
+
+BasicBlock IRBuilder::getCurrentBasicBlock() {
+  return {*this, Builder->GetInsertBlock()};
+}
+
+// -- Value 
+
+Value IRBuilder::mkInt(int val) { return {*this, Builder->getInt32(val)}; }
+  
+// -- AllocaValue
+  
+AllocaValue IRBuilder::mkAlloca(Value v) { return AllocaValue(v); }
+
+// -- Function
+
+Function IRBuilder::mkFunctionImpl(
+    std::string name, std::vector<Type> ret_type,
+    std::vector<std::pair<Type, std::string>> args) {
+
+  auto retTy = ret_type.empty() ? Builder->getVoidTy() : ret_type[0].get();
+
+  std::vector<llvm::Type*> argsTy;
+  argsTy.reserve(args.size());
+  for (auto arg : args) {
+    argsTy.push_back(arg.first.get());
+  }
+
+  llvm::FunctionType* funcType = llvm::FunctionType::get(retTy, argsTy, false);
+  llvm::Function* func         = llvm::Function::Create(
+      funcType, llvm::Function::ExternalLinkage, name, &Module);
+
+  int count = 0;
+  for (auto& arg : func->args()) {
+    arg.setName(args[count++].second);
+  }
+  return Function{*this, func};
+}
+
+Function IRBuilder::mkVoidFunction(
+    std::string name, std::vector<std::pair<Type, std::string>> args) {
+  return mkFunctionImpl(std::move(name), {}, std::move(args));
+}
+Function IRBuilder::mkFunction(
+    std::string name, Type ret_type,
+    std::vector<std::pair<Type, std::string>> args) {
+  return mkFunctionImpl(std::move(name), {ret_type}, std::move(args));
+}
+  
+// -- CallInst
+
+CallInst IRBuilder::mkCall(Function f, std::vector<Value> args) {
+  assert(args.size() == f.n_args() && "Argument count mismatch");
+  std::vector<llvm::Value*> arguments;
+  arguments.reserve(args.size());
+  for (auto& arg : args) {
+    arguments.push_back(arg.get());
+  }
+  return {*this, Builder->CreateCall(f.get(), arguments)};
+}
+
+// -- BranchInst
+
+BranchInst IRBuilder::mkBranch(BasicBlock bb) {
+  return {*this, Builder->CreateBr(bb.get())};
+}
+
+// -- PhiNode
+
+PhiNode IRBuilder::mkPhiNode(
+    Type type, std::vector<std::pair<Value, BasicBlock>> edge_list) {
+  llvm::PHINode* phi = Builder->CreatePHI(type.get(), edge_list.size());
+  for (auto& edge : edge_list) {
+    phi->addIncoming(edge.first.get(), edge.second.get());
+  }
+  return {*this, phi};
+  }
 
 } // namespace LLVMCodegen
