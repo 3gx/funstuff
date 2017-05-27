@@ -124,6 +124,7 @@ struct LLVMCodeGen {
   };
 
 
+#if 0
   // --------------------- Global Variable -----------------------------------
   
   struct GlobalVar {
@@ -140,6 +141,7 @@ struct LLVMCodeGen {
     gvar->setAlignment(type.size());
     return GlobalVar{this, gvar};
   }
+#endif
 
   //---------------------- Function -------------------------------------------
   
@@ -259,6 +261,7 @@ struct LLVMCodeGen {
   //-------------------- Ops
 
   void mkRet(Value val) { Builder.CreateRet(val.get()); }
+  void mkRetVoid() { Builder.CreateRetVoid(); }
 
   // ---------------- loop
   Value mkLoop(Value begin, Value end, Value step, Function loop_body) {
@@ -266,6 +269,7 @@ struct LLVMCodeGen {
     auto preBB   = bb.getParent().mkBasicBlock("preBB");
     auto loopBB  = bb.getParent().mkBasicBlock("loopBB");
     auto afterBB = bb.getParent().mkBasicBlock("afterBB");
+    mkBranch(preBB);
 
     preBB.set();
     auto iv = mkPhi(step.getType(), {{begin, bb}});
@@ -279,7 +283,7 @@ struct LLVMCodeGen {
     mkBranch(preBB);
 
     afterBB.set();
-    return next;
+    return iv;
   }
 
   // ---------------- branchInst
@@ -307,7 +311,9 @@ int main(int argc, char *argv[]) {
   static llvm::IRBuilder<> BuilderObj(ContextRef);
   LLVMCodeGen cg(ContextRef, *ModuleOb, BuilderObj);
 
+#if 0
   auto gvar = cg.mkGlobalVar("x", cg.mkFloatTy());
+#endif
 
   auto f = cg.mkFunction("foo", cg.mkIntTy(),
                          {{cg.mkIntTy(), "a"}, {cg.mkIntTy(), "b"}});
@@ -338,8 +344,11 @@ int main(int argc, char *argv[]) {
   auto f1entryBB = f1.mkBasicBlock("entry");
 
   auto last = cg.mkLoop(cg.mkInt(0),  phi, cg.mkInt(1), f1);
-
   cg.mkRet(last);
+
+  f1entryBB.set();
+  cg.mkRetVoid();
+
 
 
   f.verify();
