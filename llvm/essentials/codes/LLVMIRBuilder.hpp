@@ -13,7 +13,7 @@ struct Type;
 struct BasicBlock;
 struct Boolean;
 struct Value;
-struct AllocaValue;
+struct Alloca;
 struct Function;
 struct CallInst;
 struct PhiNode;
@@ -59,9 +59,10 @@ public:
 
   Value mkInt(int);
 
-  // -- AllocaValue
+  // -- Alloca
  
-  AllocaValue mkAlloca(Value value);
+  Alloca mkAlloca(Type type);
+  Alloca mkAlloca(Value value);
 
   // -- Function
 
@@ -223,16 +224,21 @@ Value Boolean::mkSelect(Value thenV, Value elseV) {
   return {Builder, Builder->CreateSelect(V, thenV.get(), elseV.get())};
 }
 
-// ------------------------ AllocaValue ---------------------------------------
+// ----------------------------- Alloca ---------------------------------------
 
-struct AllocaValue : IRBuilderRef {
-  friend AllocaValue IRBuilder::mkAlloca(Value);
+struct Alloca : IRBuilderRef {
+  friend Alloca IRBuilder::mkAlloca(Type);
+  friend Alloca IRBuilder::mkAlloca(Value);
+
 private:
   llvm::Value* V;
 
-  explicit AllocaValue(Value v) : IRBuilderRef(v.Builder) {
-    V = Builder->CreateAlloca(v.get()->getType());
-    store(v);
+  explicit Alloca(Type type) : IRBuilderRef(type.Builder) {
+    V = Builder->CreateAlloca(type.get());
+  }
+  explicit Alloca(Value value) : IRBuilderRef(value.Builder) {
+    V = Builder->CreateAlloca(value.getType().get());
+    store(value);
   }
 
 public:
@@ -241,15 +247,15 @@ public:
   }
   void store(Value v) { Builder->CreateStore(v.get(), V); }
 
-  AllocaValue& operator*=(Value R) {
+  Alloca& operator*=(Value R) {
     store(load() * R);
     return *this;
   }
-  AllocaValue& operator+=(Value R) {
+  Alloca& operator+=(Value R) {
     store(load() + R);
     return *this;
   }
-}; // struct AllocaValue
+}; // struct Alloca
 
 //---------------------- Function -------------------------------------------
 
@@ -348,9 +354,10 @@ BasicBlock IRBuilder::mkBasicBlock(std::string name) {
 
 Value IRBuilder::mkInt(int val) { return {*this, Builder->getInt32(val)}; }
   
-// -- AllocaValue
+// -- Alloca
   
-AllocaValue IRBuilder::mkAlloca(Value v) { return AllocaValue(v); }
+Alloca IRBuilder::mkAlloca(Type type) { return Alloca(type); }
+Alloca IRBuilder::mkAlloca(Value value) { return Alloca(value); }
 
 // -- Function
 
