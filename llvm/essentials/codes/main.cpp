@@ -337,7 +337,7 @@ struct LLVMCodeGen {
       std::reverse(ivs.begin(), ivs.end());
       
       // emplace function body
-      body(ivs.data());
+      body(ivs);
       return;
     }
 
@@ -455,9 +455,10 @@ int main(int argc, char *argv[]) {
 
   auto sum = cg.mkAlloca(cg.mkInt(0));
 #if 1
-  auto last1 = cg.mkLoop({cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(4), cg.mkInt(5)},
-                         {cg.mkInt(1), cg.mkInt(1)},
-                         [&](LLVMCodeGen::Value *iv) { sum += iv[0] * iv[1]; });
+  auto last1 = cg.mkLoop(
+      {cg.mkInt(0), cg.mkInt(0)}, {cg.mkInt(4), cg.mkInt(5)},
+      {cg.mkInt(1), cg.mkInt(1)},
+      [&](std::vector<LLVMCodeGen::Value> iv) { sum += iv[0] * iv[1]; });
 #else
   auto last1 = cg.mkLoop({cg.mkInt(0)}, {cg.mkInt(15)}, {cg.mkInt(1)},
                          [&](LLVMCodeGen::Value *iv) { sum += iv[0]; });
