@@ -3,11 +3,16 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
+#include <unordered_set>
 #include <vector>
 #include <string>
 #include <iostream>
 
-namespace LLVMCodegen {
+namespace LLVMIRBuilder {
+
+#if 1
+#define ALIAS_OTHER_LLVM_IRBUILDER
+#endif
 
 struct Type;
 struct BasicBlock;
@@ -24,87 +29,213 @@ private:
   using LLVMIRBuilder = llvm::IRBuilder<>;
 
   llvm::Module& Module;
-  std::unique_ptr<LLVMIRBuilder> Builder;
+  LLVMIRBuilder* Builder;
+  bool LLVMIRBuilderAliased;
 
 public:
-  explicit IRBuilder(llvm::Module& module) : Module(module) {
-    Builder.reset(new LLVMIRBuilder(getContext()));
+  // ctor to alias existing llvm::IRBuilder
+  explicit IRBuilder(llvm::Module& module, LLVMIRBuilder& builder)
+      : Module(module), Builder(&builder), LLVMIRBuilderAliased(true) {}
+
+  // ctor to create brand new llvm::IRBuilder
+  explicit IRBuilder(llvm::Module& module) : Module(module),
+                                             LLVMIRBuilderAliased(false) {
+    Builder = new LLVMIRBuilder(getContext());
   }
 
-  llvm::LLVMContext& getContext() {
-    return Module.getContext();
-  }
+  // getter for llvm::IRBuilder
+  LLVMIRBuilder* operator->() { return Builder; }
 
+  // getter for current context
+  llvm::LLVMContext& getContext() { return Module.getContext(); }
+
+  // getter for current module
   llvm::Module& getModule() { return Module; }
 
-  LLVMIRBuilder* operator->() { return Builder.get(); }
-  
   void dump() const { Module.dump(); }
   bool verifyModule() { return llvm::verifyModule(Module); }
+
+  // dtor: if Builder is not thei alias to existing llvm::IRBuilder, 
+  //       delete it then
+  ~IRBuilder() {
+    if (!LLVMIRBuilderAliased) {
+      delete Builder;
+    }
+  }
 
   // -- method declarations
 
   // -- Type 
-
+  // --------------------------------------------------------------------------
+  
+  /// Factory methods for int32 type
+  /// @return   int32 type
   Type mkIntTy();
+
+  /// Factory methods for float32 type
+  /// @return   float32 type
   Type mkFloatTy();
+  
+  /// Factory methods for float64 type
+  /// @return   float64 type
   Type mkDoubleTy();
   
   // -- BasicBlock
-
+  // --------------------------------------------------------------------------
+  
+  /// Obtain current basic block
+  /// @return  current basic blick
   BasicBlock getCurrentBasicBlock();
-  BasicBlock mkBasicBlock(std::string);
+
+  /// Factory method for a new basic block
+  /// @name    Name of the new basic block
+  /// @return  New basic block
+  BasicBlock mkBasicBlock(std::string name);
 
   // -- Value
+  // --------------------------------------------------------------------------
 
-  Value mkInt(int);
-  Value mkFloat(float);
-  Value mkDouble(double);
+  /// Manufacture IR representation for integer value
+  /// @value   input integer value
+  /// @return  IR representation for integer value
+  Value mkInt(int value);
+
+  /// Manufacture IR representation for APInt value
+  /// @value   Input APInt  value
+  /// @return  wrapper AIPInt value
+  Value mkAPInt(llvm::APInt value);
+
+  /// Manufacture IR representation for float32 value
+  /// @value   input float32 value
+  /// @return  IR representation for float32 value
+  Value mkFloat(float value);
+
+  /// Manufacture IR representation for float64 value
+  /// @value   input float64 value
+  /// @return  IR representation for float64 value
+  Value mkDouble(double value);
+
+  /// Manufacture IR representation for desired type
+  /// @type    IR representation of input type
+  /// @value   Input value (will be cast to input type)
+  /// @return  IR representation for float64 value
+  template<class T>
+  Value mkValue(Type type, T value);
+
+  /// Wrap llvm::Value 
+  /// @input   llvm::Value 
+  /// @return  wrapped llvm::value
+  Value wrapLLVMValue(llvm::Value* input);
 
   // -- Alloca
- 
-  Alloca mkAlloca(Type type);
+  // --------------------------------------------------------------------------
+
+  /// Manufacture alloca from Value
+  /// @value    Input value
+  /// @return   Alloca holding the value
   Alloca mkAlloca(Value value);
 
   // -- Function
+  // --------------------------------------------------------------------------
 
 private:
+  // implementaiton detail for public mkfunction
+  // can construct with void and non-void functions
   Function mkFunctionImpl(std::string name,
                           std::vector<Type> ret_type,
                           std::vector<std::pair<Type, std::string>> args);
 
 public:
+  /// Manufacture void function declartion
+  /// @name    function name
+  /// @parms   list of function parameters, each is a pair (type, name)
+  /// @return  IR of void function declaration
   Function mkVoidFunction(std::string name,
-                          std::vector<std::pair<Type, std::string>> args = {});
+                          std::vector<std::pair<Type, std::string>> parms);
+
+  /// Manufacture non-void function declartion
+  /// @name      function name
+  /// @ret_type  function return type
+  /// @parms     list of function parameters, each is a pair (type, name)
+  /// @return    IR of non-void function declaration
   Function mkFunction(std::string name, Type ret_type,
-                      std::vector<std::pair<Type, std::string>> args = {});
+                      std::vector<std::pair<Type, std::string>> parms);
 
   // -- CallInst
+  // --------------------------------------------------------------------------
 
+  /// Create call instruction
+  /// @fun      function
+  /// @args     list of argumennts
+  /// @return   IR for function call 
   CallInst mkCall(Function fun, std::vector<Value> args);
   
   // -- BranchInst
-  
-  BranchInst mkBranch(BasicBlock);
+  // --------------------------------------------------------------------------
+ 
+  /// Make branch instruction 
+  /// @basic_block   basic block to branch
+  /// @return        IR for branch instruction
+  BranchInst mkBranch(BasicBlock basic_block);
   
   // -- PhiNode
+  // --------------------------------------------------------------------------
 
+  /// Create Phi node
+  /// @type        type of a phi node
+  /// @edge_list   List of incoming edges, each is pair of (Value,BasicBlock)
+  ///              more edges can be later add with += {Value,BB} operator
+  /// @return      IR for phi instruction
   PhiNode mkPhiNode(Type type,
                     std::vector<std::pair<Value, BasicBlock>> edge_list);
-
-  // -- Ret
   
-  void mkRet(Value val);
+  // -- Misc
+  // --------------------------------------------------------------------------
+
+  /// Create void return instruction
   void mkRetVoid();
 
+  /// Create non-return instruction 
+  /// @value   value to return
+  void mkRet(Value value);
+
   // -- Loops
+  // --------------------------------------------------------------------------
   
+ 
+  // Manufactor 1D loop with exit block probided
   template <class F>
-  Value mkLoop(Value begin, Value end, Value step, F body);
+  void mkLoopWithExitBlock(Value begin, Value end, Value step,
+                          BasicBlock exitBB, F body);
+  
+  /// Manfacture ND while-loop: 
+  /// @trip_count  List of trip_count tuples
+  ///                  field 0: begin
+  ///                  field 1: end
+  ///                  field 2: step
+  /// @body      function object that emits body IR
+  ///              the function must have the following signature
+  ///              (std::vector<Value>) where vector has same order
+  ///                                   of IVs as the trip count
+  /// @return    Vector of induction variable at loop end
   template <class F>
-  std::vector<Value> mkNdLoop(
-      std::vector<std::tuple<Value, Value, Value>> trip_count,
-      F body);
+  void mkNdLoop(std::vector<std::tuple<Value, Value, Value>> trip_count,
+                F body);
+
+  /// Manfacture 1D while-loop: 
+  ///       for (iv = begin; iv < end; iv += step) { body(iv) };
+  /// @begin     Begin value
+  /// @end       End value
+  /// @step      Step to increment induction variable
+  /// @body      function object that emits body IR
+  ///              the function must have the following signature
+  ///              (BasicBlock, Value) where
+  ///                BasicBlock - loop besic block (you may espace it if needed)
+  ///                Value      - value of inducation variable
+  /// @return    Value of induction variable at loop end
+  template <class F>
+  void mkLoop(Value begin, Value end, Value step, F body);
+
 
 }; // struct IRBuilder
 
@@ -133,13 +264,13 @@ struct Type : IRBuilderRef {
     } else if (type->getTypeID() == Builder->getDoubleTy()->getTypeID()) {
       TypeKind = float64;
     } else {
-      assert(0 && "Must not happend");
+      assert(0 && "Internal error");
     }
   }
 
   Kind getTypeKind() const { return TypeKind; }
 
-  llvm::Type* get() {
+  llvm::Type* get() const {
     switch (TypeKind) {
     case int32:
       return Builder->getInt32Ty();
@@ -148,11 +279,11 @@ struct Type : IRBuilderRef {
     case float64:
       return Builder->getDoubleTy();
     default:
-      assert(0 && "Must not happen");
+      assert(0);
     }
   }
 
-  size_t size() {
+  size_t size() const {
     switch (TypeKind) {
     case int32:
     case float32:
@@ -160,9 +291,8 @@ struct Type : IRBuilderRef {
     case float64:
       return 8;
     default:
-      assert(0 && "Must not happen");
+      assert(0);
     }
-    return 0;
   }
 
   bool operator==(Type const& other) { return TypeKind == other.TypeKind; }
@@ -176,7 +306,7 @@ struct BasicBlock : IRBuilderRef {
   llvm::BasicBlock* BB;
   BasicBlock(IRBuilder& builder, llvm::BasicBlock* bb) : IRBuilderRef(builder),
   BB(bb) {}
-  llvm::BasicBlock* get() { return BB; }
+  llvm::BasicBlock* get() const { return BB; }
   void set() { Builder->SetInsertPoint(BB); }
 
   // -- declarations
@@ -192,54 +322,189 @@ struct Boolean : IRBuilderRef {
 
   Boolean(IRBuilder& ref, llvm::Value* value) : IRBuilderRef(ref), V(value) {}
 
-  llvm::Value* get() { return V; }
+  llvm::Value* get() const { return V; }
 
-  template<class Then, class Else>
-  void mkIfThenElse(Then thenF, Else elseF);
+  template <class Then, class Else>
+  void mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB,
+                    Then thenF, Else elseF);
+  template <class Then, class Else>
+  void ifThenElse(Then thenF, Else elseF);
 
   template <class Then>
-  void mkIfThen(Then thenF);
+  void ifThen(Then thenF);
 
   // -- declaration
-  Value mkSelect(Value thenV, Value elseV);
+  Value select(Value thenV, Value elseV);
+
+  Boolean operator&(Boolean const& R) {
+    return {Builder, Builder->CreateAnd(this->get(), R.get(), "and")};
+    }
+    Boolean operator|(Boolean const& R) {
+      return {Builder, Builder->CreateOr(this->get(), R.get(), "or")};
+    }
+    Boolean operator^(Boolean const& R) {
+      return {Builder, Builder->CreateXor(this->get(), R.get(), "xor")};
+    }
+    Boolean operator!() {
+      return {Builder, Builder->CreateNot(this->get(), "not")};
+    }
 }; // struct Boolean
 
 // -----------------------  Value -------------------------------------------
 
 struct Value : IRBuilderRef {
+
+  enum InitialValue {
+    ZERO,
+    MIN,
+    MAX
+  };
   llvm::Value* V;
 
   Value(IRBuilder& ref, llvm::Value* value) : IRBuilderRef(ref), V(value) {}
   Type getType() { return {Builder, V->getType()}; }
 
-  llvm::Value* get() { return V; }
+  llvm::Value* get() const { return V; }
 
   Value operator*(Value R) {
-    return {Builder, Builder->CreateMul(this->get(), R.get(), "mul")};
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateMul(this->get(), R.get(), "imul")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFMul(this->get(), R.get(), "fmul")};
+      default:
+        assert(0);
+    };
   }
+
   Value operator+(Value R) {
     assert(getType() == R.getType());
     switch(getType().getTypeKind()) {
       case Type::int32:
-        return {Builder, Builder->CreateAdd(this->get(), R.get(), "add")};
+        return {Builder, Builder->CreateAdd(this->get(), R.get(), "iadd")};
       case Type::float32:
       case Type::float64:
         return {Builder, Builder->CreateFAdd(this->get(), R.get(), "fadd")};
       default:
-        assert(0 && "Must not happen");
+        assert(0);
+    };
+  }
+  Value operator/(Value R) {
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateSDiv(this->get(), R.get(), "idiv")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFDiv(this->get(), R.get(), "fdiv")};
+      default:
+        assert(0);
     };
   }
 
+  Value operator-(Value R) {
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateSub(this->get(), R.get(), "isub")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFSub(this->get(), R.get(), "fsub")};
+      default:
+        assert(0);
+    };
+  }
+
+
   Boolean operator<(Value R) {
-    return {Builder, Builder->CreateICmpSLT(this->get(), R.get(), "lt")};
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateICmpSLT(this->get(), R.get(), "ilt")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFCmpULT(this->get(), R.get(), "flt")};
+      default:
+        assert(0);
+    };
+  }
+  Boolean operator>(Value R) {
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateICmpSGT(this->get(), R.get(), "igt")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFCmpUGT(this->get(), R.get(), "fgt")};
+      default:
+        assert(0);
+    };
+  }
+  Boolean operator>=(Value R) {
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateICmpSGE(this->get(), R.get(), "ige")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFCmpUGE(this->get(), R.get(), "fge")};
+      default:
+        assert(0);
+    };
+  }
+  Boolean operator<=(Value R) {
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateICmpSLE(this->get(), R.get(), "ile")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFCmpULE(this->get(), R.get(), "fle")};
+      default:
+        assert(0);
+    };
   }
   Boolean operator!=(Value R) {
-    return {Builder, Builder->CreateICmpNE(this->get(), R.get(), "ne")};
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateICmpNE(this->get(), R.get(), "ine")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFCmpUNE(this->get(), R.get(), "fne")};
+      default:
+        assert(0);
+    };
+  }
+  Boolean operator==(Value R) {
+    assert(getType() == R.getType());
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateICmpEQ(this->get(), R.get(), "ieq")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFCmpUEQ(this->get(), R.get(), "feq")};
+      default:
+        assert(0);
+    };
+  }
+  Value operator-() {
+    switch(getType().getTypeKind()) {
+      case Type::int32:
+        return {Builder, Builder->CreateNeg(this->get(), "ineg")};
+      case Type::float32:
+      case Type::float64:
+        return {Builder, Builder->CreateFNeg(this->get(), "fneg")};
+      default:
+        assert(0);
+    };
   }
 
   Value castTo(Type type) {
-    if (this->getType().getTypeKind() == Type::int32)
-    {
+    switch (this->getType().getTypeKind()) {
+    case Type::int32:
       switch (type.getTypeKind()) {
       case Type::int32: 
         return *this;
@@ -250,7 +515,7 @@ struct Value : IRBuilderRef {
         return {Builder, Builder->CreateSIToFP(this->get(),
                                                Builder.mkDoubleTy().get())};
       };
-    } else if (this->getType().getTypeKind() == Type::float32) {
+    case Type::float32:
       switch (type.getTypeKind()) {
       case Type::int32:
         return {Builder, Builder->CreateFPToSI(this->get(),
@@ -261,7 +526,7 @@ struct Value : IRBuilderRef {
         return {Builder, Builder->CreateFPCast(this->get(),
                                                Builder.mkDoubleTy().get())};
       };
-    } else if (this->getType().getTypeKind() == Type::float64) {
+    case Type::float64: 
       switch (type.getTypeKind()) {
       case Type::int32:
         return {Builder, Builder->CreateFPToSI(this->get(),
@@ -272,36 +537,24 @@ struct Value : IRBuilderRef {
       case Type::float64:
         return *this;
       };
-    } else {
-      assert(0 && "Must not happen");
     }
+    assert(0);
   }
 }; // struct Value
-Value Boolean::mkSelect(Value thenV, Value elseV) {
+Value Boolean::select(Value thenV, Value elseV) {
   return {Builder, Builder->CreateSelect(V, thenV.get(), elseV.get())};
 }
 
 // ----------------------------- Alloca ---------------------------------------
 
 struct Alloca : IRBuilderRef {
-  friend Alloca IRBuilder::mkAlloca(Type);
-  friend Alloca IRBuilder::mkAlloca(Value);
-
-private:
   llvm::Value* V;
 
   explicit Alloca(Type type) : IRBuilderRef(type.Builder) {
     V = Builder->CreateAlloca(type.get());
   }
-  explicit Alloca(Value value) : IRBuilderRef(value.Builder) {
-    V = Builder->CreateAlloca(value.getType().get());
-    store(value);
-  }
 
-public:
-  Value load() {
-    return {Builder, Builder->CreateLoad(V)};
-  }
+  Value load() { return {Builder, Builder->CreateLoad(V)}; }
   void store(Value v) { Builder->CreateStore(v.get(), V); }
 }; // struct Alloca
 
@@ -326,7 +579,7 @@ struct Function : IRBuilderRef {
     return llvm::verifyFunction(*F, &os);
   }
 
-  llvm::Function* get() { return F; }
+  llvm::Function* get() const { return F; }
   std::string const& getErrorString() { return ErrorString; }
   std::string getName() const { return std::string(F->getName().data()); }
 
@@ -337,6 +590,10 @@ struct Function : IRBuilderRef {
 
   BasicBlock mkBasicBlock(std::string name) {
     return {Builder, llvm::BasicBlock::Create(Builder.getContext(), name, F)};
+  }
+
+  BasicBlock getEntryBasicBlock() {
+    return {Builder, &F->getEntryBlock()};
   }
 }; // struct Function
 Function BasicBlock::getParent() { return {Builder, BB->getParent()}; }
@@ -349,7 +606,7 @@ struct CallInst : IRBuilderRef {
                                                    Inst(inst) {}
 
   explicit operator Value() { return {Builder, Inst}; }
-  llvm::CallInst* get() { return Inst; }
+  llvm::CallInst* get() const { return Inst; }
 }; // struct CallInst
 
 // -------------------------- BranchInst ------------------------------------
@@ -359,7 +616,7 @@ struct BranchInst : IRBuilderRef {
   BranchInst(IRBuilder& ref, llvm::BranchInst* inst) : IRBuilderRef(ref),
                                                        Inst(inst) {}
   explicit operator Value() { return {Builder, Inst}; }
-  llvm::BranchInst* get() { return Inst; }
+  llvm::BranchInst* get() const { return Inst; }
 };
 
 // ------------------------------- PhiNode ------------------------------------
@@ -368,7 +625,7 @@ struct PhiNode : IRBuilderRef {
   llvm::PHINode* V;
 
   PhiNode(IRBuilder& ref, llvm::PHINode* v) : IRBuilderRef(ref), V(v) {}
-  llvm::PHINode* get() { return V; }
+  llvm::PHINode* get() const { return V; }
 
   explicit operator Value() { return {Builder, V}; }
 
@@ -378,65 +635,165 @@ struct PhiNode : IRBuilderRef {
   }
 };
 
+// --------------------------------------------------------------------------
+// -- Boolean method definitions
+// --------------------------------------------------------------------------
 
-// -- method definitions
-  
-// -- Type 
-
-Type IRBuilder::mkIntTy() { return {*this, Type::int32}; }
-Type IRBuilder::mkFloatTy() { return {*this, Type::float32}; }
-Type IRBuilder::mkDoubleTy() { return {*this, Type::float64}; }
-
-// -- BasicBlock 
-
-BasicBlock IRBuilder::getCurrentBasicBlock() {
-  return {*this, Builder->GetInsertBlock()};
-}
-BasicBlock IRBuilder::mkBasicBlock(std::string name) {
-  auto bb = getCurrentBasicBlock();
-  auto f =  bb.getParent();
-  return f.mkBasicBlock(name);
+template <class Then, class Else>
+void Boolean::mkIfThenElse(BasicBlock thenBB, BasicBlock elseBB,
+                           Then thenF, Else elseF) {
+  Builder->CreateCondBr(V, thenBB.get(), elseBB.get());
+  thenBB.set();
+  thenF();
+  elseBB.set();
+  elseF();
 }
 
 template <class Then, class Else>
-void Boolean::mkIfThenElse(Then thenF, Else elseF) {
+void Boolean::ifThenElse(Then thenF, Else elseF) {
   auto thenBB = Builder.mkBasicBlock("then");
   auto elseBB = Builder.mkBasicBlock("else");
   auto contBB = Builder.mkBasicBlock("cont");
-  Builder->CreateCondBr(V, thenBB.get(), elseBB.get());
-  thenBB.set();
-  Builder.mkBranch(thenF(contBB));
-  elseBB.set();
-  Builder.mkBranch(elseF(contBB));
+  mkIfThenElse(thenBB, elseBB,
+               // then
+               [&contBB, &thenF, this]() {
+                 thenF();
+                 Builder.mkBranch(contBB);
+               },
+               // else
+               [&contBB, &thenF, this]() {
+                 thenF();
+                 Builder.mkBranch(contBB);
+               });
   contBB.set();
 }
 
 template <class Then>
-void Boolean::mkIfThen(Then thenF)
-{
-  mkIfThenElse(thenF, [&](BasicBlock bb) { return bb; });
+void Boolean::ifThen(Then thenF) {
+  auto thenBB = Builder.mkBasicBlock("then");
+  auto contBB = Builder.mkBasicBlock("cont");
+  mkIfThenElse(thenBB, thenBB,
+               // then
+               [&contBB, &thenF, this]() {
+                 thenF();
+                 Builder.mkBranch(contBB);
+               },
+               []() {});
+  contBB.set();
 }
 
-// -- Value 
+// --------------------------------------------------------------------------
+// -- IRBuilder method definitions
+// --------------------------------------------------------------------------
+
+// -- RetTy: Type
+// --------------------------------------------------------------------------
+
+Type IRBuilder::mkIntTy() {
+      return {*this, Type::int32}; }
+Type IRBuilder::mkFloatTy() {
+      return {*this, Type::float32}; }
+Type IRBuilder::mkDoubleTy() {
+      return {*this, Type::float64}; }
+
+// -- RetTy: BasicBlock
+// --------------------------------------------------------------------------
+
+BasicBlock IRBuilder::getCurrentBasicBlock() {
+      return {*this, Builder->GetInsertBlock()};
+}
+BasicBlock IRBuilder::mkBasicBlock(std::string name) {
+      auto bb = getCurrentBasicBlock();
+      auto f  = bb.getParent();
+      return f.mkBasicBlock(name);
+}
+
+// -- RetTy: Value 
+// --------------------------------------------------------------------------
 
 Value IRBuilder::mkInt(int val) {
-  return {*this, Builder->getInt32(val)};
+      return {*this, Builder->getInt32(val)};
+}
+Value IRBuilder::mkAPInt(llvm::APInt val) {
+      return {*this, llvm::Constant::getIntegerValue(Builder->getInt32Ty(), val)};
 }
 Value IRBuilder::mkFloat(float val) {
-  return {*this, llvm::ConstantFP::get(llvm::Type::getFloatTy(getContext()), val)};
+      return {*this, llvm::ConstantFP::get(llvm::Type::getFloatTy(getContext()), val)};
 }
 Value IRBuilder::mkDouble(double val) {
-  return {*this, llvm::ConstantFP::get(llvm::Type::getDoubleTy(getContext()), val)};
+      return {*this, llvm::ConstantFP::get(llvm::Type::getDoubleTy(getContext()), val)};
+}
+Value IRBuilder::wrapLLVMValue(llvm::Value* val) {
+      return {*this, val}; }
+template <class T>
+Value IRBuilder::mkValue(Type type, T value) {
+      switch (type.getTypeKind()) {
+      case Type::int32:
+        return mkInt(static_cast<int>(value));
+      case Type::float32:
+        return mkFloat(static_cast<float>(value));
+      case Type::float64:
+        return mkDouble(static_cast<double>(value));
+  };
+  assert(0);
+}
+template <>
+Value IRBuilder::mkValue<Value::InitialValue>(Type type,
+                                              Value::InitialValue what) {
+  int bit_width = 32; //type.get()->getBitWidth()))};
+  switch (what) {
+  case Value::ZERO:
+    switch (type.getTypeKind()) {
+    case Type::int32:
+      return mkInt(0);
+    case Type::float32:
+      return mkFloat(llvm::APFloat::getZero(llvm::APFloat::IEEEsingle).convertToFloat());
+    case Type::float64:
+      return mkDouble(llvm::APFloat::getZero(llvm::APFloat::IEEEdouble).convertToDouble());
+    };
+  case Value::MIN: 
+    switch (type.getTypeKind()) {
+      case Type::int32:
+        return mkAPInt(llvm::APInt::getSignedMinValue(bit_width));
+      case Type::float32:
+        return mkFloat(llvm::APFloat::getSmallest(llvm::APFloat::IEEEsingle, true).convertToFloat());
+      case Type::float64:
+        return mkDouble(llvm::APFloat::getSmallest(llvm::APFloat::IEEEdouble, true).convertToDouble());
+    };
+  case Value::MAX: 
+    switch (type.getTypeKind()) {
+      case Type::int32:
+        return mkAPInt(llvm::APInt::getSignedMaxValue(bit_width));
+      case Type::float32:
+        return mkFloat(llvm::APFloat::getLargest(llvm::APFloat::IEEEsingle).convertToFloat());
+      case Type::float64:
+        return mkDouble(llvm::APFloat::getLargest(llvm::APFloat::IEEEdouble).convertToDouble());
+    };
+  };
+  assert(0);
 }
 
-// -- Alloca
-  
-Alloca IRBuilder::mkAlloca(Type type) {
-  return Alloca(type); }
-Alloca IRBuilder::mkAlloca(Value value) {
-  return Alloca(value); }
+// -- RetTy: Alloca
+// --------------------------------------------------------------------------
 
-// -- Function
+Alloca IRBuilder::mkAlloca(Value value) { 
+  auto currBB = getCurrentBasicBlock();
+  auto entryBB = currBB.getParent().getEntryBasicBlock();
+  // if first instruction found, set this to be insertionp point
+  if (auto firstI = entryBB.get()->getFirstNonPHIOrDbg()) {
+    Builder->SetInsertPoint(firstI);
+  } else {
+    // ohterwise set entryBB first since this is the first instruction
+    entryBB.set();
+  }
+  auto alloca =  Alloca(value.getType()); 
+  currBB.set();
+  alloca.store(value);
+  return alloca;
+}
+
+// -- RetTy: Function
+// --------------------------------------------------------------------------
 
 Function IRBuilder::mkFunctionImpl(
     std::string name, std::vector<Type> ret_type,
@@ -471,7 +828,8 @@ Function IRBuilder::mkFunction(
   return mkFunctionImpl(std::move(name), {ret_type}, std::move(args));
 }
   
-// -- CallInst
+// -- RetTy: CallInst
+// --------------------------------------------------------------------------
 
 CallInst IRBuilder::mkCall(Function f, std::vector<Value> args) {
   assert(args.size() == f.n_args() && "Argument count mismatch");
@@ -483,13 +841,15 @@ CallInst IRBuilder::mkCall(Function f, std::vector<Value> args) {
   return {*this, Builder->CreateCall(f.get(), arguments)};
 }
 
-// -- BranchInst
+// -- RetTy: BranchInst
+// --------------------------------------------------------------------------
 
 BranchInst IRBuilder::mkBranch(BasicBlock bb) {
   return {*this, Builder->CreateBr(bb.get())};
 }
 
-// -- PhiNode
+// -- RetTy: PhiNode
+// --------------------------------------------------------------------------
 
 PhiNode IRBuilder::mkPhiNode(
     Type type, std::vector<std::pair<Value, BasicBlock>> edge_list) {
@@ -500,107 +860,138 @@ PhiNode IRBuilder::mkPhiNode(
   return {*this, phi};
 }
   
-// -- Ret
+// -- Misc
+// --------------------------------------------------------------------------
 
 void IRBuilder::mkRet(Value val) { Builder->CreateRet(val.get()); }
 void IRBuilder::mkRetVoid() { Builder->CreateRetVoid(); }
+Value min(Value a, Value b) { return (a < b).select(a, b); }
+Value max(Value a, Value b) { return (a > b).select(a, b); }
 
 // -- Loops
 
 template <class F>
-Value IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
-  auto bb = getCurrentBasicBlock();
+void IRBuilder::mkLoopWithExitBlock(Value begin, Value end, Value step,
+                                    BasicBlock exitBB, F body) {
+  auto entryBB = getCurrentBasicBlock();
+  auto headerBB = entryBB.getParent().mkBasicBlock("header");
+  auto loopBB   = entryBB.getParent().mkBasicBlock("body");
+  auto latchBB  = entryBB.getParent().mkBasicBlock("latch");
+  auto footerBB = entryBB.getParent().mkBasicBlock("footer");
 
-  // create basic blocks for a loop structure
-  auto condBB  = bb.getParent().mkBasicBlock("condBB");
 
-  // initialize induction variable to init value
-  auto iv = mkAlloca(begin);
-  mkBranch(condBB);
+  ////////////
+  // entry:
+  //     br header
+  // header:
+  //     phi = [begin, header], [iv, latch]
+  //     cond =  phi < end
+  //
+  //     if (cond) {
+  //        br loop
+  //     } else {
+  //        br footer
+  //     }
+  // loop:
+  //     body(phi)
+  //     br latch
+  //
+  // latch:
+  //     iv = phi + step
+  //     br header
+  //
+  // footer:
+  //     br exitBB
+  /////////////
+  
+  mkBranch(headerBB);
 
-  // verify condition
-  condBB.set();
-  auto cond = iv.load() < end;
-  cond.mkIfThen([&](BasicBlock) {
-    auto bb = body(condBB, iv.load());
-    iv.store(iv.load() + step);
-    return bb;
-  });
-  return iv.load();
+  headerBB.set();
+  auto phi = mkPhiNode(begin.getType(), {{begin, entryBB}});
+  Value iv = static_cast<Value>(phi);
+  auto cond = iv < end;
+
+  cond.mkIfThenElse(loopBB, footerBB, []() {}, []() {});
+
+  loopBB.set();
+  body(iv);
+  mkBranch(latchBB);
+
+  latchBB.set();
+  iv = iv + step;
+  phi += {iv, latchBB};
+  mkBranch(headerBB);
+
+  footerBB.set();
+  mkBranch(exitBB);
 }
+// --------------------------------------------------------------------------
 
 template <class F>
-std::vector<Value> IRBuilder::mkNdLoop(
-    std::vector<std::tuple<Value, Value, Value>> trip_count,
-    F body) {
+void IRBuilder::mkNdLoop(
+    std::vector<std::tuple<Value, Value, Value>> trip_count, F body) {
   assert(!trip_count.empty());
 
   auto const iv_count = trip_count.size();
 
-  // for perf reasons, we'll be iterating from the last to the first index
-  // so invert, the array to preserve logical loop structure
-  std::reverse(trip_count.begin(), trip_count.end());
-
   // current, and ending induction variable lists
-  std::vector<Value> ivs, end_ivs;
-
-  // basic block list for each loop
-  std::vector<BasicBlock> end_bbs;
+  std::vector<Value> ivs;
 
   // reserve storage
   ivs.reserve(iv_count);
-  end_ivs.reserve(iv_count);
-  end_bbs.reserve(iv_count);
 
   // recursive ND loop implementation
-  std::function<void()> impl = [&, this]() {
+  std::function<void()> impl =
+      [&ivs, &iv_count, &trip_count, &body, &impl, this]() {
 
-    // if we processed all indices, just emplace loop body, and return
-    if (trip_count.empty()) {
+        // if we processed all indices, just emplace loop body, and return
+        if (trip_count.empty()) {
 
-      assert(ivs.size() == iv_count);
+          assert(ivs.size() == iv_count);
 
-      // since ivs are stored in reverse order, so reverse the vector :)
-      std::reverse(ivs.begin(), ivs.end());
+          // we want ivs to have same order as trip_count
+          // since we process trip_count from the end,
+          // we need to reverse ivs vector before passing it to the loop body
+          std::reverse(ivs.begin(), ivs.end());
 
-      // emplace function body
-      body(ivs);
+          // emplace function body
+          body(ivs);
 
-      // done!
-      return;
-    }
+          // done!
+          return;
+        }
 
-    // otherwise, process the following index
-    
-    auto ivc = trip_count.back();
-    trip_count.pop_back();
+        // otherwise, process the following index
 
-    using std::get;
-    // emit 1D loop, which recursively calls this function
-    auto end_iv = mkLoop(get<0>(ivc), get<1>(ivc), get<2>(ivc),
-                         [&](BasicBlock bb, Value iv) {
+        auto ivc = trip_count.back();
+        trip_count.pop_back();
 
-                           //store currend iv
-                           ivs.push_back(iv);
+        using std::get;
+        // emit 1D loop, which recursively calls this function
+        auto exitBB = mkBasicBlock("exit");
+        mkLoopWithExitBlock(get<0>(ivc), get<1>(ivc), get<2>(ivc),
+                            exitBB,
+                            [&ivs, &impl](Value iv) {
 
-                           // call itself
-                           impl();
-                           return bb;
-                         });
+                              // store current iv
+                              ivs.push_back(iv);
 
-    end_ivs.push_back(end_iv);
-    end_bbs.push_back(getCurrentBasicBlock());
-  };
+                              // call self
+                              impl();
+                            });
+        // set exit point for 1D loop
+        exitBB.set();
+      };
 
   // generate the loop
   impl();
-  std::reverse(end_ivs.begin(), end_ivs.end());
-  end_bbs.back().set();
-
-  assert(ivs.size() == iv_count);
-  assert(end_ivs.size() == ivs.size());
-  assert(end_bbs.size() == ivs.size());
-  return end_ivs;
 }
 
-} // namespace LLVMCodegen
+template <class F>
+void IRBuilder::mkLoop(Value begin, Value end, Value step, F body) {
+  mkNdLoop({std::make_tuple(begin, end, step)},
+           [&body](std::vector<Value> iv) { return body(iv[0]); });
+}
+
+
+} // namespace LLVMIRBuilder
