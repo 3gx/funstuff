@@ -155,4 +155,136 @@ let rec peval4 p env fenv =
 
 let res4 = peval4 prog1 env0 env0
 
+(* eval5 : exp -> (string -> int) -> (string -> int -> int)
+ *             -> (int option -> 'a) -> 'a *)
 
+let rec eval5 e env fenv k =
+  match e with
+    Int i -> k (Some i)
+  | Var s -> k (Some (env s))
+  | App (s, e2) -> eval5 e2 env fenv (fun r  -> match r with
+                                         Some x -> k (Some ((fenv s) x))
+                                       | None   -> k None)
+  | Add (e1,e2) -> eval5 e1 env fenv 
+                    (fun r -> 
+                        eval5 e2 env fenv 
+                          (fun s -> match (r,s) with
+                                (Some x, Some y ) -> k (Some (x+y))
+                              | _ -> k None))
+  | Sub (e1,e2) -> eval5 e1 env fenv 
+                    (fun r -> 
+                        eval5 e2 env fenv 
+                          (fun s -> match (r,s) with
+                                (Some x, Some y ) -> k (Some (x-y))
+                              | _ -> k None))
+  | Mul (e1,e2) -> eval5 e1 env fenv 
+                    (fun r -> 
+                        eval5 e2 env fenv 
+                          (fun s -> match (r,s) with
+                                (Some x, Some y ) -> k (Some (x*y))
+                              | _ -> k None))
+  | Div (e1,e2) -> eval5 e1 env fenv 
+                    (fun r -> 
+                        eval5 e2 env fenv 
+                          (fun s -> match (r,s) with
+                                (Some x, Some y ) -> if y == 0 then k None else k (Some (x/y))
+                              | _ -> k None))
+  | Ifz (e1,e2,e3) -> eval5 e1 env  fenv
+                        (fun r ->  match r with
+                               Some x -> if x == 0 then (eval5 e2 env fenv k)
+                                                   else (eval5 e3 env fenv k)
+                           | None -> k None)
+
+
+(* pevalK5 : prog -> (string ->int) -> (string -> int -> int) 
+  *               -> (int option -> int) -> int *)
+
+(*
+let rec pevalK5 p env fenv k = 
+  match p with 
+    Program  ([],e) -> eval5 e env fenv k
+  | Program (Declaration (s1,s2,e1)::tl,e) ->
+      let rec f x = eval5 e1 (ext env s2 x) (ext fenv s1 f) k
+         in pevalK5 (Program(tl,e)) env (ext fenv s1 f) k
+*)
+
+(*let rec  pevalK5 : prog -> (string ->int) -> (string -> int -> int) 
+                 -> (int option -> 'a) -> 'a = 
+fun p env fenv k ->*)
+let rec pevalK5 p env fenv k =  
+  match p with 
+     Program ([],e) -> eval5 e env fenv k
+   | Program (Declaration (s1,s2,e1)::tl,e) -> 
+       let rec f x = eval5 e1 (ext env s2 x) (ext fenv s1 f) k 
+       in pevalK5 (Program(tl,e)) env (ext fenv s1 f) k
+
+exception Div_by_zero;;
+
+(* peval5 : prog -> (string -> int) -> (string -> int -> int) -> int *)
+
+let peval5 p env fenv = 
+  pevalK5 p env fenv (function Some x -> x | None ->raise Div_by_zero)
+
+let res5 = peval5 prog1 env0 env0
+
+(* eval 6 : exp -> (string -> int code) -> (string -> (int -> int) code)
+ *              -> (int code option -> 'b code) -> 'b code *)
+
+let rec eval6 e env fenv k = match e with
+   Int i -> k (Some .<i>.)
+ | Var s -> k (Some (env s))
+ | App (s,e2) -> eval6 e2 env fenv
+                  (fun r -> match r with
+                     Some x -> k (Some .<.~(fenv s) .~x>.)
+                   | None -> k None)
+ | Add (e1, e2) -> eval6 e1 env fenv (fun r -> 
+                     eval6 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> k (Some .<.~x + .~y>.)
+                        | _ -> k None))
+ | Sub (e1, e2) -> eval6 e1 env fenv (fun r -> 
+                     eval6 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> k (Some .<.~x - .~y>.)
+                        | _ -> k None))
+ | Mul (e1, e2) -> eval6 e1 env fenv (fun r -> 
+                     eval6 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> k (Some .<.~x * .~y>.)
+                        | _ -> k None))
+ | Div (e1, e2) -> eval6 e1 env fenv (fun r -> 
+                     eval6 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> 
+                              .<if .~y == 0 then .~(k None) 
+                                            else .~(k (Some .<.~x/ .~y>.))>.
+                        | _ -> k None))
+ | Ifz (e1,e2,e3) -> eval6 e1 env fenv 
+                     (fun r -> match r with
+                        Some x -> .<if .~x == 0 then .~(eval6 e2 env fenv k)
+                                                else .~(eval6 e3 env fenv k)>.
+                     | None -> k None)
+
+(*let rec  pevalK5 : prog -> (string ->int) -> (string -> int -> int) 
+                 -> (int option -> 'a) -> 'a = 
+fun p env fenv k ->*)
+let rec pevalK6 p env fenv k =  
+  match p with 
+     Program ([],e) -> eval6 e env fenv k
+   | Program (Declaration (s1,s2,e1)::tl,e) -> 
+       .<let rec f x = .~(eval6 e1 (ext env s2 .<x>.) (ext fenv s1 .<f>.) k)
+       in .~(pevalK6 (Program(tl,e)) env (ext fenv s1 .<f>.) k)>.
+
+(* peval6 : prog -> (string -> int code) -> (string -> (int -> int) code)
+ *               -> int code *)
+let peval6 p env fenv = 
+(*    pevalK6 p env fenv (function Some x -> x | None -> .<32>.)*)
+    pevalK6 p env fenv (function Some x -> x | None -> .<raise Not_found>.)
+
+let res6 = peval6 prog1 env0 env0
+
+let prog2 = Program ([Declaration ("fact", "x", Ifz (Var "x",
+                Int 1, Mul (Var "x", (App ("fact", Sub(Var "x", Int 1))))))],
+                App ("fact", Div(Int 20, Int 4 )))
+
+let res6a = peval6 prog2 env0 env0
