@@ -288,3 +288,141 @@ let prog2 = Program ([Declaration ("fact", "x", Ifz (Var "x",
                 App ("fact", Div(Int 20, Int 4 )))
 
 let res6a = peval6 prog2 env0 env0
+
+(* unrolling *)
+
+(* eval7 : exp -> (string -> int code) -> (string -> (int -> int) code)  
+               -> int code *)
+
+let rec eval7 e env fenv = 
+  match e with
+    Int i -> .<i>.
+  | Var s -> env s
+  | App ( s, e2) -> fenv s (eval7 e2 env fenv)
+  | Add (e1, e2) -> .<.~(eval7 e1 env fenv) + .~(eval7 e2 env fenv)>.
+  | Sub (e1, e2) -> .<.~(eval7 e1 env fenv) - .~(eval7 e2 env fenv)>.
+  | Mul (e1, e2) -> .<.~(eval7 e1 env fenv) * .~(eval7 e2 env fenv)>.
+  | Div (e1, e2) -> .<.~(eval7 e1 env fenv) / .~(eval7 e2 env fenv)>.
+  | Ifz (e1,e2,e3) -> .<if .~(eval7 e1 env fenv) == 0
+                        then .~(eval7 e2 env fenv)
+                        else .~(eval7 e3 env fenv)>.
+
+(* repeat   : int -> ('a -> 'a) -> 'a -> 'a *)
+let rec repeat n f = 
+  if n == 0 then f else fun x -> f (repeat (n-1) f x)
+
+(* peval7 : prog  -> (string -> int code) -> (string -> int code -> int code)
+ *                -> int code *)
+
+let rec peval7 p env fenv = 
+  match p with 
+    Program ([], e) -> eval7 e env fenv
+  | Program (Declaration (s1,s2,e1)::tl, e) ->
+      .<let rec f x = 
+        .~(let body cf x = eval7 e1 (ext env s2 x) (ext fenv s1 cf) 
+           in repeat 2 body (fun y -> .<f .~y>.) .<x>.)
+        in  .~(peval7 (Program(tl,e)) env (ext fenv s1 (fun y -> .<f .~y>.)))>.
+                 
+
+let res7 = peval7 prog1 env0 env0 
+
+let rec eval8 e env fenv = 
+  match e with
+    Int i -> .<i>.
+  | Var s -> env s
+  | App ( s, e2) -> .<let x = .~(eval8 e2 env fenv)
+                      in .~(fenv s .<x>.)>.
+  | Add (e1, e2) -> .<.~(eval8 e1 env fenv) + .~(eval8 e2 env fenv)>.
+  | Sub (e1, e2) -> .<.~(eval8 e1 env fenv) - .~(eval8 e2 env fenv)>.
+  | Mul (e1, e2) -> .<.~(eval8 e1 env fenv) * .~(eval8 e2 env fenv)>.
+  | Div (e1, e2) -> .<.~(eval8 e1 env fenv) / .~(eval8 e2 env fenv)>.
+  | Ifz (e1,e2,e3) -> .<if .~(eval8 e1 env fenv) == 0
+                        then .~(eval8 e2 env fenv)
+                        else .~(eval8 e3 env fenv)>.
+
+(* repeat   : int -> ('a -> 'a) -> 'a -> 'a *)
+let rec repeat n f = 
+  if n == 0 then f else fun x -> f (repeat (n-1) f x)
+
+(* peval8 : prog  -> (string -> int code) -> (string -> int code -> int code)
+ *                -> int code *)
+
+let rec peval8 p env fenv = 
+  match p with 
+    Program ([], e) -> eval8 e env fenv
+  | Program (Declaration (s1,s2,e1)::tl, e) ->
+      .<let rec f x = 
+        .~(let body cf x = eval8 e1 (ext env s2 x) (ext fenv s1 cf) 
+           in repeat 2 body (fun y -> .<f .~y>.) .<x>.)
+        in  .~(peval8 (Program(tl,e)) env (ext fenv s1 (fun y -> .<f .~y>.)))>.
+                 
+
+let res8 = peval8 prog1 env0 env0 
+
+
+(* eval 9 : exp -> (string -> int code) -> (string -> int code -> int code)
+ *              -> (int code option -> 'b code) -> 'b code *)
+
+let rec eval9 e env fenv k = match e with
+   Int i -> k (Some .<i>.)
+ | Var s -> k (Some (env s))
+(* | App (s,e2) -> eval9 e2 env fenv
+                  (fun r -> match r with
+                     Some x -> k (Some ((fenv s) x))
+                   | None -> k None)*)
+ | App (s,e2) -> eval9 e2 env fenv
+                  (fun r ->  
+                    match r with
+                     Some x -> .<let xx= .~x in .~(k (Some ((fenv s) .<xx>.)))>.
+                   | None -> k None)
+ | Add (e1, e2) -> eval9 e1 env fenv (fun r -> 
+                     eval9 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> k (Some .<.~x + .~y>.)
+                        | _ -> k None))
+ | Sub (e1, e2) -> eval9 e1 env fenv (fun r -> 
+                     eval9 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> k (Some .<.~x - .~y>.)
+                        | _ -> k None))
+ | Mul (e1, e2) -> eval9 e1 env fenv (fun r -> 
+                     eval9 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> k (Some .<.~x * .~y>.)
+                        | _ -> k None))
+ | Div (e1, e2) -> eval9 e1 env fenv (fun r -> 
+                     eval9 e2 env fenv (fun s ->
+                         match (r,s) with
+                           (Some x, Some y) -> 
+                              .<if .~y == 0 then .~(k None) 
+                                            else .~(k (Some .<.~x/ .~y>.))>.
+                        | _ -> k None))
+ | Ifz (e1,e2,e3) -> eval9 e1 env fenv 
+                     (fun r -> match r with
+                        Some x -> .<if .~x == 0 then .~(eval9 e2 env fenv k)
+                                                else .~(eval9 e3 env fenv k)>.
+                     | None -> k None)
+
+(*let rec  pevalK9 : prog -> (string ->int) -> (string -> int code  int code) 
+                 -> (int code option -> int code) -> int code *)
+let rec  pevalK9 n p env fenv k =  
+  match p with 
+     Program ([],e) -> eval9 e env fenv k
+   | Program (Declaration (s1,s2,e1)::tl,e) -> 
+       .<let rec f x = 
+         .~(let body cf x = eval9 e1 (ext env s2 x) (ext fenv s1 cf) k in
+            repeat n body (fun y -> .<f .~y>.) .<x>.)
+       in .~(pevalK9 n (Program(tl,e)) env (ext fenv s1 (fun y -> .<f .~y>.)) k)>.
+
+let peval9 n p env fenv = 
+    pevalK9 n p env fenv (function Some x -> x | None -> .<raise Not_found>.)
+
+let res9 = peval9 3 prog1 env0 env0 
+let res9a = peval9 3 prog2 env0 env0 
+
+open Runcode
+let res9done = !.res9
+let dummy = print_int res9done; print_string "\n number:";
+
+let i = read_int () in 
+     peval9 i prog2 env0 env0 
