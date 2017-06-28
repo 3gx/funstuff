@@ -93,3 +93,6 @@ type 'a tree = Node of 'a*('a tree list)
 
 let rec exec : int expr -> int expr tree =
   fun e -> Node (e,[exec e' | e' <- trans e])
+
+let resl1 = List.map eval @@ trans g
+
