@@ -17,7 +17,13 @@ let rec eval : int expr -> int = fun x ->
 
 let res = eval f
 
-(* 2.2 Fold for expressions *)
+(* 2.2 Fold for expressions 
+
+   deno :: Expr Int -> Int
+   deno (Val n) = f n
+   deno (Add x y) = g (deno x) (deno y)
+
+*)
 
 let rec fold f g = function
   | (Val n) -> f n
@@ -47,6 +53,8 @@ let res1 = eval1 f
 
 (* 2.3 Generalizing 
  --------------------
+
+   * Denotational semantics <-> Folding over syntax trees *
 
    refs:
     * Hutton : A tutorial on universality & expressivity of folds 
@@ -95,4 +103,26 @@ let rec exec : int expr -> int expr tree =
   fun e -> Node (e,[exec e' | e' <- trans e])
 
 let resl1 = List.map eval @@ trans g
+
+(* 3.2 Unfold for trees 
+ 
+    oper :: a -> Tree b
+    oper x = Node (f x) [oper x' | x' <- g x]
+
+*)
+
+let rec unfold f g x = 
+  Node (f x, [unfold f g x' | x' <- g x])
+
+let exec1 = unfold id trans
+
+let resu1 = exec1 g;
+
+(* 3.3 Generalizing 
+ 
+     * Operational semantics <-> Unforlding to transition trees *
+
+*)
+
+(* 4 Reasoning about semantics *)
 
