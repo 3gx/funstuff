@@ -21,8 +21,8 @@ let rec fold f g = function
 type inst = Push of int | Add
 
 let comp : int expr -> inst list = 
-  let f = fun n -> [Push n] in 
-  let g = fun xs ys -> xs@ys @ [Add] in 
+  let f n = [Push n] in 
+  let g xs ys = xs@ys @ [Add] in 
   fold f g
 
 let stmts = comp f
@@ -32,5 +32,14 @@ let id x = x
 let eval1 = fold id (+)
 
 let res1 = eval1 f
+
+(*
+   f : a -> b      g : b -> b -> b
+  -----------------------------------
+        fold f g : 'a expr -> b
+ *)
+
+
+(* 2.3 Generalizing *)
 
 
