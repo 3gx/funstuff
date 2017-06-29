@@ -49,5 +49,9 @@ instance Functor P where
     Res p a -> Res (f p) a
     Rel p g -> Rel (f p) g
 
+instance Functor T where
+  fmap f (Node xs) = 
+    Node [(a, f t) | (a,t) <- xs]
 
+-- 6 Operational semantics of CCS
               
