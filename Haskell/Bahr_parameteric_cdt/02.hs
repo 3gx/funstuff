@@ -8,7 +8,7 @@
 
 type VarT = String
 
-data Lam  a = Lam VarT a deriving Functor
+data Lam  a = Lam (a -> a)
 data Var  a = Var VarT deriving Functor
 data App  a = App a a deriving Functor
 data Lit  a = Lit Int deriving Functor
@@ -49,6 +49,16 @@ inject = In . inj
 project :: (g :<: f) => Term f -> Maybe (g (Term f))
 project = proj . out
 
+class Difunctor f where
+  dimap :: (a->b) -> (c->d) -> f b c -> f a d
+
+instance Difunctor (->) where
+  dimap f g h = g . h . f
+
+instance Difunctor f => Functor (f a) where
+  fmap = dimap id
+
+{-
 iPlus :: (Plus :<: f) => Term f -> Term f -> Term f
 iPlus x y = inject (Plus x y)
 
@@ -106,5 +116,5 @@ instance Pretty Err where
   fpretty Err = "error"
 
 prettye = pretty e
-
+-}
 
