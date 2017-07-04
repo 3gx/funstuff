@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 data Expr f = In (f (Expr f))
 
@@ -14,6 +15,7 @@ expr1 = In $ Val 3
 data Add e = Add e e
 type AddExpr = Expr Add
 
+infixr :+:
 data (f :+: g) e = Inl (f e) | Inr (g e)
 
 addExample :: Expr (Val :+: Add)
@@ -99,8 +101,8 @@ infixl 7 .*.
 x .*. y = inject (Mul x y)
 
 -- doesn't compile
--- x2 :: Expr (Val :+: Add :+: Mul)
--- x2 = val 80 .*. val 5 .+. val 4
+x2 :: Expr (Val :+: Add :+: Mul)
+x2 = (val 80 .*. val 5) .+. val 4
 
 x3 :: Expr (Val :+: Mul)
 x3 = val 6 .*. val 7
