@@ -58,7 +58,6 @@ eval expr = foldExpr evalAlgebra expr
 
 --val :: Int -> Expr f
 --val x = In (Val x) 
-
 --infixl 6 .+.
 --(.+.) :: Expr f -> Expr f-> Expr f
 --x .+. y = In (Add x y)
@@ -87,3 +86,21 @@ x .+. y = inject (Add x y)
 
 x1 :: Expr (Add  :+: Val)
 x1 = val 3000 .+. val 1330 .+. val 7
+
+data Mul x = Mul x x
+instance Functor Mul where
+  fmap f (Mul x y) = Mul (f x) (f y)
+
+instance Eval Mul where
+  evalAlgebra (Mul x y) = x * y
+
+infixl 7 .*.
+(.*.) :: (Mul :<: f) => Expr f -> Expr f -> Expr f
+x .*. y = inject (Mul x y)
+
+-- doesn't compile
+-- x2 :: Expr (Val :+: Add :+: Mul)
+-- x2 = val 80 .*. val 5 .+. val 4
+
+x3 :: Expr (Val :+: Mul)
+x3 = val 6 .*. val 7
