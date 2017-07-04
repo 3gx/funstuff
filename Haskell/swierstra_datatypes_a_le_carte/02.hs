@@ -66,18 +66,35 @@ eval expr = foldExpr evalAlgebra expr
 
 class (Functor sub, Functor sup) => sub :<: sup where 
   inj :: sub a -> sup a
+  prj :: sup a -> Maybe (sub a)
 
 instance Functor f => f :<: f where
   inj = id
+  prj = Just
 
 instance (Functor f, Functor g) => f :<: (f :+: g) where
   inj = Inl
+  prj (Inl f) = Just f
+  prj (Inr _) = Nothing
 
 instance (Functor f, Functor g, Functor h, f :<: g) => f :<: (h :+: g) where
   inj = Inr . inj
+  prj (Inr g) = prj g
+  prj (Inl _) = Nothing
+
 
 inject :: (g :<: f) => g (Expr f) -> Expr f
 inject = In . inj
+
+project :: (g :<: f) => Expr f -> Maybe (g (Expr f))
+project (In t) = prj t
+
+distr :: (Add :<: f, Mul :<: f) => Expr f -> Maybe (Expr f)
+distr t = do
+  Mul a b <- project t
+  Add c d <- project b
+  return (a.*.c .+. a.*.d)
+
 
 val :: (Val :<: f) => Int -> Expr f
 val x = inject (Val x)
@@ -102,7 +119,38 @@ x .*. y = inject (Mul x y)
 
 -- doesn't compile
 x2 :: Expr (Val :+: Add :+: Mul)
-x2 = (val 80 .*. val 5) .+. val 4
+x2 = val 80 .*. val 5 .+. val 4
 
 x3 :: Expr (Val :+: Mul)
 x3 = val 6 .*. val 7
+
+x4 :: Expr (Val :+: Add :+: Mul)
+x4 = val 4 .*. (val 80 .+. val 5)
+
+
+class Render f where
+  render :: Render g => f (Expr g) -> String
+
+pretty :: Render f => Expr f -> String
+pretty (In t) = render t
+
+instance Render Val where
+  render (Val i) = show i
+
+instance Render Add where
+  render (Add x y) = "(" ++ pretty x ++ " + " ++ pretty y ++ ")"
+
+instance Render Mul where
+  render (Mul x y) = "(" ++ pretty x ++ " * " ++ pretty y ++ ")"
+
+instance (Render f, Render g) => Render (f :+: g) where
+  render (Inl x) = render x
+  render (Inr y) = render y
+
+distr_app = do
+     x <- distr x4
+     return $ pretty x
+
+
+
+
