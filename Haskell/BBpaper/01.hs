@@ -33,7 +33,7 @@ data Program a where
   TurnLeft  :: Program ()
   TurnRight :: Program ()
   Sensor    :: Program BoolE
-  Cond      :: Program BoolE -> Program () -> Program ()
+  Cond      :: Program BoolE -> Program () -> Program () -> Program ()
   While     :: Program BoolE -> Program () -> Program ()
   Return    :: a -> Program a
   Bind      :: Program a -> (a -> Program b) -> Program b
@@ -84,6 +84,9 @@ data Prg = PMove
 newNameSupply = undefined
 supplyValue x = 42
 
+split :: a->(a,a,a)
+split = undefined
+
 runCompile :: Program a -> Prg
 runCompile prg = snd $ compile s prg
   where s = newNameSupply
@@ -98,3 +101,11 @@ compile s Sensor = (Var nom, PSensor nom)
   where
       v = supplyValue s
       nom = "v" ++ show v
+
+compiler s (Cond b p1 p2) = ((), bp `PSeq` PCond b' p1' p2')
+  where
+    (s1,s2,s3) = split3 s
+    (b', bp) = compile s1 b
+    (a1,p1') = compile s2 p1
+    (a2,p2') = compile s3 p2
+
